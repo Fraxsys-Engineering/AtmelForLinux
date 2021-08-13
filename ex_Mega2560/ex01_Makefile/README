@@ -1,0 +1,72 @@
+MEGA2560 - Ex01 - The Makefile
+------------------------------------------------------------------------------
+Host: Linux (AMD64 or ARM32/64 eg. RaspberryPi)
+Lang: C (Std.99/ANSI)
+
+Project: (Github.com) Fraxsys-Engineering/AtmelForLinux
+Author:  Eddy_D (Aug 2021)
+
+This example is a starting point for a new project. The Makefile here can
+be used as-is or expanded to include more operations. This is a C makefile
+and would need modification for use as a C++ Makefile.
+
+SOURCE CODE -----------------------------------------------------
+
+Auto-Scan: As-is, the Makefile will scan for all .c and .h files in
+the same directory as itself and included them into the compile. Header
+files that are modified are "watched" and so will cause a re-compile of
+all source. Modified code files simularly will cause a partial recompile
+of the touched source file and all dependancies down to the final output
+binary.
+
+Manual Selection: Comment out the scanning options for SOURCES &
+HEADERS and uncomment the manual lists. Add the source files 
+pertinent to the build. Source files can be pulled from other 
+directories; use a relative path for them.
+
+OUTPUTS ---------------------------------------------------------
+
+Output files. 
+*.out 	ELF formatted output file, not used for programming
+*.hex	Intel HEX file, used by avrdude to program into the target Flash.
+*.map   The linkers map file.
+
+MAP file
+For convenience the linker map file is saved to a file. This is useful for
+exploring how the program uses Flash and RAM resources on the target for
+different sections
+.text   binary program data
+.bss    initialized RAM (eg. static int x = 5, outside of a function)
+etc.
+
+Program Name ----------------------------------------------------
+
+The executable name can be changed from "main" at the top of the file if
+needed. This is not that useful as the program is not really conventionally
+started as on a PC but instead is programmed onto the target as semi-
+permanent "firmware". It will remain on the target, through power cycles,
+until it is programmed over by another firmware package.
+
+COMPILER OPTIONS ------------------------------------------------
+
+Debugging
+Debugging data is compiled into the resulting firmware object but is only
+useful if a SWD, ICSP or JTAG tether is connected between the host and 
+the target Mega2560. 
+
+Enable CFLAGS options for debugging to enable it in compilation. Comment
+out the alternative (Size optimized option).
+
+Optimize for Size (Default)
+This CFLAGS option reduces the flash memory used by the embedded image
+as much as possible in the compiler. The actual size savings will depend
+greatly on the program itself.
+
+Enable CFLAGS options for size optimization and comment out the 
+alternative debug option.
+
+AVRDude & Programmer --------------------------------------------
+
+For this particular target I have had the best success (with new boards)
+using the "wiring" programmer over a standard USB cable.
+
