@@ -79,6 +79,11 @@ clean:
 cleanall:
 	rm -vf *.o *.out *.map *.hex
 
+.PHONY: readfuses
+readfuses:
+	$(AVRD) -c $(PARTNO) -p $(AVR_MCU) -P $(SERDEV) -b $(BAUD) -U lfuse:r:low_fuse.hex:h -U hfuse:r:high_fuse.hex:h -U efuse:r:ext_fuse.hex:h
+	rm low_fuse.hex high_fuse.hex ext_fuse.hex
+	
 download: $(HEX)
 	$(AVRD) $(AVRD_FLAGS) -c $(PARTNO) -p $(AVR_MCU) -P $(SERDEV) -b $(BAUD) -U flash:w:$(HEX)
 
