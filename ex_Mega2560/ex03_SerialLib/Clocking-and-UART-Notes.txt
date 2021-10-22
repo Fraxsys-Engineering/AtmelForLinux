@@ -1,0 +1,138 @@
+Clocking and UART Notes - Mega2560 Board (Arduino Clone)
+
+There are three fuse octets. avrdude refers to them as H, L and E.
+
+Reading the fuse bits...
+ - "wire" mode for comms
+ - m2560 MCU
+ - USB port is /dev/ttyACM0, *not* /dev/ttyUSB* !
+---
+avrdude -c wiring -p m2560 -U lfuse:r:low_fuse:hex:h \
+-U hfuse:r:high_fuse.hex:h -U efuse:r:ext_fuse.hex:h \
+-P /dev/ttyACM0 -b 115200
+(it is MANDITORY to add filenames to write to, despite there only being
+ one octet read for each one?!)
+--- Output ---
+avrdude: AVR device initialized and ready to accept instructions
+Reading | ################################################## | 100% 0.01s
+avrdude: Device signature = 0x1e9801
+avrdude: reading lfuse memory:
+Reading | ################################################## | 100% 0.00s
+avrdude: writing output file "low_fuse:hex"
+avrdude: reading hfuse memory:
+Reading | ################################################## | 100% 0.00s
+avrdude: writing output file "high_fuse.hex"
+avrdude: reading efuse memory:
+Reading | ################################################## | 100% 0.01s
+avrdude: writing output file "ext_fuse.hex"
+avrdude: safemode: Fuses OK (E:00, H:00, L:00)
+avrdude done.  Thank you.
+(so fuses E,H,L are: 0x00,0x00,0x00)
+
+FUSE DISCREPANCIES - (E:H:L)
+Sainsmart Mega2560 Fuses 		00:00:00 (?)
+keyestudio ks0002 MEGA 2560 R3  FF:D8:FF (working ok)
+
+Mapping avrdude fuse names to the Mega2560 MCU as per its official docs.
+atmel-2549-8-bit-avr-microcontroller-atmega640-1280-1281-2560-2561_datasheet [pdf] 
+(2549QAVR02/2014) (2014)
+Section 30 "Fuse Bits"
+
+'H' High Byte
+--------+-----------+-----------------------+---------------------------+--------
+BIT		| NAME		| SECT.					| Notes						| ks0002 
+--------+-----------+-----------------------+---------------------------+--------
+7		| OCDEN		| Debug Support			| '1' = DISABLED			| 1
+6		| JTAGEN	| Programming (JTAG)	| '1' = DISABLED			| 1
+5		| SPIEN		| Programming (SPI)		| '1' = DISABLED			| 0 (on)
+4		| WDTON		| WatchDog 				| pg. 65 '1' = unprogrammed	| 1
+--------+-----------+-----------------------+---------------------------+--------
+3		| EESAVE	| EEPROM				| '1' NOT PRESERVED			| 1
+2		| BOOTSZ1	| Bootloader 			| Table 29-2 pg. 320		| 0 \
+1		| BOOTSZ0	| Bootloader			|							| 0 / 4K 0 - 0x06FF (largest)
+0		| BOOTRST	| Vector Table			| '1' = unprogrammed		| 0 |reset to Bootloader, not vector table: 0x0000
+--------+-----------+-----------------------+---------------------------+--------
+
+'L' Low Byte
+--------+-----------+-----------------------+---------------------------+--------
+BIT		| NAME		| SECT.					| Notes						| ks0002 
+--------+-----------+-----------------------+---------------------------+--------
+7		| CKDIV8	| 10 - System Clock		| '0' (programmed)(DEFAULT)	| 1 (off)
+6		| CKOUT		| "						| '1' disabled/off			| 1 (off)
+5		| SUT1		| "						| '1' unprogrammed, pg. 360	| 1 \
+4		| SUT0		| "						| '0' programmed			| 1 / longest startup
+--------+-----------+-----------------------+---------------------------+--------
+3		| CKSEL3	| "						| Table 10-1, pg. 40		| 1 \
+2		| CKSEL2	| "						| 							| 1 | LP XO 8-16 MHz
+1		| CKSEL1	| "						| 							| 1 /
+0		| CKSEL0	| "						| 							| 1 | XO slow powerup
+--------+-----------+-----------------------+---------------------------+--------
+
+'E' Extra Byte
+--------+-----------+-----------------------+---------------------------+--------
+BIT		| NAME		| SECT.					| Notes						| ks0002 
+--------+-----------+-----------------------+---------------------------+--------
+7		| n/u		|													| 1
+6		| n/u		|													| 1
+5		| n/u		|													| 1
+4		| n/u		|													| 1
+--------+-----------+-----------------------+---------------------------+--------
+3		| n/u		|													| 1
+2		| BODLEVEL2	| Brown-out Trg. Lvl    | Sect. 31.5, pg 360		| 1
+1		| BODLEVEL1	| "						| "System & Reset			| 1
+0		| BODLEVEL0	| "						| Characteristics"			| 1
+--------+-----------+-----------------------+---------------------------+--------
+
+UART ------------------------------------------------------------------
+
+Count: 4 USART[0,1,2,3]
+Clk  : CLK_IO, based off of CLK_CORE (keyestudio board has CLK_CORE = 16 MHz)
+
+Features
+ - full duplex Rx, Tx
+ - asynchronous or synchronous
+ - master or slave clock synchronous
+ - high res. buad rate generator
+ - serial frame sz: 5-9 bits, 1,2 stop bits
+ - odd,even parity generation and checking
+ - Detects: data overrun, framing error
+ - Filtering: false start bit detection, digital LPF
+ - Interrupts (3): Tx complete, Tx Empty, Rx complete
+ - Multi-Processor comms mode
+ - Double-speed async. comms mode
+
+Baud Rate Generator
+ - Registers
+   UBRR[H:L]n
+ - CLK_PRE Generated Prescaler clock, based on CLK_IO (CLK_CORE, FOSC)
+     CLK_PRE = CLK_IO / (UBRRn + 1)
+ - CLK_RX = CLK_PRE | CLK_PRE/2
+   Rx logic oversamples the input by X so it needs a higher clk freq than TX (MORE INFO NEEDED)
+ - CLK_TX = CLK_PRE/2 | CLK_PRE/8 | CLK_PRE/16
+ - Calculation (Normal Async)
+   BAUD  = CLK_IO / [ 16 x (UBRRn + 1) ]
+   UBRRn = [ CLK_IO / (16 x BAUD) ] - 1
+   9600 BUAD, CLK_IO = 16MHz, UBRRn ~ 104 (104.1)
+   
+Tx Shifter
+- Registers
+  UDR (tx)
+  
+Rx Shifter
+- Registers
+  UDR (rx)
+
+Control Logic
+- Registers
+   UCSRnA
+   UCSRnB
+   UCSRnC
+ - Pin Control
+   (Synchronous mode ONLY)
+   DDR for XCKn PIN (Synch. Clk) determines direction;
+     OUT for establishing this MCU as the Synch. Clock MASTER
+     IN  for establishing this MCU as the Synch. Clock SLAVE
+   TX PIN - TXEN (UCSRnB) set will override the pin to become Tx output. Takes precedence over GPIO.
+   
+
+

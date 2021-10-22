@@ -1,4 +1,7 @@
 /****************************************************************************
+ * Excercise 02 - Simple Glue Software 
+ *                (A simple HID using switches and 7-Seg LED displays)
+ * ---
  * ioproc.c
  * Keyboard Scan and 7-Segment LED Dispay Updater
  * Version 1.0
