@@ -3,8 +3,8 @@ NAME := serialtest
 
 ## LIBRARY SUPPORT (base dir ../avrlib)
 VPATH=../avrlib
-LIB_SRC := serialdriver.c
-LIB_HDR := serialdriver.h
+LIB_SRC := serialdriver.c dblink.c
+LIB_HDR := serialdriver.h dblink.h
 
 ## Sourcefiles, manually entered
 #SOURCES := foo.c bar.c etc...

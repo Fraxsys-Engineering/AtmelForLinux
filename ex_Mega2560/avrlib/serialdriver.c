@@ -24,6 +24,9 @@
 #include <util/delay.h>
 #include <string.h>  // string ops.
 
+//Debugging Only
+//#include "dblink.h"
+
 typedef enum serial_state_type {
 	USS_CLOSED  = 0,
 	USS_IDLE    = 0x01,
@@ -79,14 +82,14 @@ uint32_t serbuf_rd_overflow = 0; // count # bytes that were missed due to a full
 
 // ====== MACROS To Enable/Disable Interrupt Service Routines =========
 // [Rx] Read FIFO, Rx FIFO FULL
-#define ENABLE_INTR_RECV_COMPLETE()     SER_CTSR_A |= MSK_RXCIE;
-#define DISABLE_INTR_RECV_COMPLETE()    SER_CTSR_A &= (uint8_t)~(MSK_RXCIE);
+#define ENABLE_INTR_RECV_COMPLETE()     SER_CTSR_B |= MSK_RXCIE;
+#define DISABLE_INTR_RECV_COMPLETE()    SER_CTSR_B &= (uint8_t)~(MSK_RXCIE);
 // [Tx] Write FIFO, Tx FIFO EMPTY
-#define ENABLE_INTR_TR_FIFO_EMPTY()     SER_CTSR_A |= MSK_UDRIE;
-#define DISABLE_INTR_TR_FIFO_EMPTY()    SER_CTSR_A &= (uint8_t)~(MSK_UDRIE);
+#define ENABLE_INTR_TR_FIFO_EMPTY()     SER_CTSR_B |= MSK_UDRIE;
+#define DISABLE_INTR_TR_FIFO_EMPTY()    SER_CTSR_B &= (uint8_t)~(MSK_UDRIE);
 // [Tx] Tx Shifter Complete & Tx FIFO EMPTY
-#define ENABLE_INTR_TR_COMPLETE()       SER_CTSR_A |= MSK_TXCIE;
-#define DISABLE_INTR_TR_COMPLETE()      SER_CTSR_A &= (uint8_t)~(MSK_TXCIE);
+#define ENABLE_INTR_TR_COMPLETE()       SER_CTSR_B |= MSK_TXCIE;
+#define DISABLE_INTR_TR_COMPLETE()      SER_CTSR_B &= (uint8_t)~(MSK_TXCIE);
 
 // Wrap atomic code around this - future: replace with <util.atomic.h> ?
 #define __ENTER_CRITICAL_SECTION__()   cli();
@@ -140,7 +143,9 @@ int serial_open(uint32_t baud, sfbits_t frame, ssbits_t stops, sparity_t par) {
 		serial_state = USS_IDLE;
 		serial_reset();
 		ENABLE_INTR_RECV_COMPLETE(); // Enable receiver only. Tx will be started when it gets something to send.
+#if 1
 		sei(); // enable global interrupts, if disabled.
+#endif
 		rc = 0;
 	}
 	return rc;
@@ -202,22 +207,22 @@ ISR(USART1_RX_vect)
 	}
 }
 
-#ifdef SIGNAL_USART_DONE
 // Tx Complete
 ISR(USART1_TX_vect)
 {
+	DISABLE_INTR_TR_COMPLETE();
 }
-#endif
 
 // DATA Register Empty - UDRE1 bit is set, Tx FIFO can be (re-)filled
 ISR(USART1_UDRE_vect)
 {
 	// Note: if Tx buffer is empty, then disable the UDRE1 flag so this
 	//       ISR does not keep re-tripping.
-	if (serial_state != USS_CLOSED || serbuf_wr_used > 0) {
+	if (serial_state != USS_CLOSED && serbuf_wr_used > 0) {
 		SER_FIFO = serbuf_wr[serbuf_wr_tail++];
 		if (serbuf_wr_tail >= SERBUF_MAX_LEN) {
 			serbuf_wr_tail = 0;
+			//blink_once(1);
 		}
 		serbuf_wr_used --;
 		serbuf_wr_free ++;
