@@ -89,7 +89,7 @@ int main () {
 		endptr = 0;
 		while (1) {
 			_delay_ms(100);
-			if (serial_peek() > 0) {
+			if (serial_rd_peek() > 0) {
 				readc = serial_gets(&(rx_string[endptr]), RX_STRN_MAX - endptr);
 				if (readc < 0) {
 					blink_error(6);

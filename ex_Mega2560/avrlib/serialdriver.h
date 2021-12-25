@@ -1,5 +1,5 @@
 /****************************************************************************
- * serialdriver.h
+ * serialdriver.h ** DEPRECATED - Use chardev.h to open UART driver**
  * Simple inteerupt driver serial driver with buffering. Requires additional
  * layer for I/O character stream support (not included in this code).
  * Version 1.0
@@ -18,8 +18,9 @@
  *                "/dev/uart1,9600,8n1,rtscts" 	(H/W flow control)
  ***************************************************************************/
 
-#ifndef _SERIALDRIVER_H_
-#define _SERIALDRIVER_H_
+//#ifndef _SERIALDRIVER_H_
+//#define _SERIALDRIVER_H_
+#if 0
 
 #include <stdint.h>  // uint8_t etc.
 
@@ -110,12 +111,18 @@ extern int serial_puts(const char * strn, int len);
 // Same as above but expects a '\0' terminated string and generates len(gth) internally.
 extern int serial_putstrn(const char * strn);
 
-// [USER] Check to see if there is any data wating to be read, from incoming Rx serial.
+// [USER] Check to see if there is any data waiting to be read, from incoming Rx serial.
 // 	Returns: 
 //		-n		Error
 //		0		no data
 //		+n		n characters received. If greater than SERBUF_MAX_LEN than some data was dropped!
-extern int serial_peek(void);
+extern int serial_rd_peek(void);
+
+// [USER] Same as the rd_peek() except this checks the Tx FIFO to see 
+//        how much space there is available for writing into. For cases
+//        where the user wants to write the entire buffer into the FIFO
+//        and not hang about doing partial writes.
+extern int serial_wr_peek(void);
 
 // [USER] Read data arriving from serial port
 //	strn 	buffer for holding string data from buffer
