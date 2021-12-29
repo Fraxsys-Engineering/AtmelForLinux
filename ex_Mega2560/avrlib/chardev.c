@@ -49,13 +49,16 @@ int cd_close(int file_handle) {
 #ifdef TDD_PRINTF
 	printf("{cd_close} handle[%d]\n", file_handle);
 #endif
-    hdriver_t dinst; // transient stack copy w/ driver instance context
-    hdriver_t * dh = CharDev_Get_Instance(file_handle, &dinst);
+    const hdriver_t * dh = CharDev_Get_Instance(file_handle);
     int rc = -1;
     if (dh) {
-        rc = dh->close(dh->opctx);
+        rc = dh->close(file_handle);
+        Driver_returnHandle(file_handle);
     }
 #ifdef TDD_PRINTF
+	else {
+		printf("{cd_close} Error, CharDev_Get_Instance(%d) returned NULL!\n", file_handle);
+	}
 	printf("{cd_close} rc[%d]\n", rc);
 #endif
     return rc;
@@ -65,29 +68,33 @@ int cd_read(int file_handle, char * buf, int len) {
 #ifdef TDD_PRINTF
 	printf("{cd_read} handle[%d]\n",file_handle);
 #endif
-    hdriver_t dinst;
-    hdriver_t * dh = CharDev_Get_Instance(file_handle, &dinst);
+    const hdriver_t * dh = CharDev_Get_Instance(file_handle);
     int rc = -1;
     if (dh) {
-        rc = dh->read(dh->opctx, buf, len);
+        rc = dh->read(file_handle, buf, len);
     }
 #ifdef TDD_PRINTF
+	else {
+		printf("{cd_read} Error, CharDev_Get_Instance(%d) returned NULL!\n", file_handle);
+	}
 	printf("{cd_read} rc[%d]\n", rc);
 #endif
     return rc;
 }
 
-int cd_write(int file_handle, char * buf, int len) {
+int cd_write(int file_handle, const char * buf, int len) {
 #ifdef TDD_PRINTF
 	printf("{cd_write} handle[%d]\n",file_handle);
 #endif
-    hdriver_t dinst;
-    hdriver_t * dh = CharDev_Get_Instance(file_handle, &dinst);
+    const hdriver_t * dh = CharDev_Get_Instance(file_handle);
     int rc = -1;
     if (dh) {
-        rc = dh->write(dh->opctx, buf, len);
+        rc = dh->write(file_handle, buf, len);
     }
 #ifdef TDD_PRINTF
+	else {
+		printf("{cd_write} Error, CharDev_Get_Instance(%d) returned NULL!\n", file_handle);
+	}
 	printf("{cd_write} rc[%d]\n", rc);
 #endif
     return rc;
@@ -97,13 +104,15 @@ int cd_ioctl(int file_handle, int cmd, int * val) {
 #ifdef TDD_PRINTF
 	printf("{cd_ioctl} handle[%d] cmd[%d]\n", file_handle, cmd);
 #endif
-    hdriver_t dinst;
-    hdriver_t * dh = CharDev_Get_Instance(file_handle, &dinst);
+    const hdriver_t * dh = CharDev_Get_Instance(file_handle);
     int rc = -1;
     if (dh) {
-        rc = dh->ioctl(dh->opctx, cmd, val);
+        rc = dh->ioctl(file_handle, cmd, val);
     }
 #ifdef TDD_PRINTF
+	else {
+		printf("{cd_ioctl} Error, CharDev_Get_Instance(%d) returned NULL!\n", file_handle);
+	}
 	printf("{cd_ioctl} rc[%d]\n", rc);
 #endif
     return rc;

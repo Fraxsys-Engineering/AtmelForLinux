@@ -44,27 +44,43 @@ void test_chardriverstack(void) {
 	
 	printf("\n"); // CUnit annoyingly does not CR when adding a print stating that it is starting this test...
 	
-	hnd = cd_open("/dev/loop/0", 0);
+	sprintf(rxb,"/dev/loop/%d",inst);
+	printf(" Opening device: %s\n", rxb);
+	hnd = cd_open(rxb, 0);
 	CU_ASSERT_FATAL( hnd >= 0 );
 	
 	// make sure loopback instance <inst> was created.
-	CU_ASSERT( mock_loop_check_instance(inst) == 1 );
+	CU_ASSERT_FATAL( mock_loop_check_instance(inst) == 1 );
 	
-	// put a receiving string into the Rx buffer in loop/0
-	CU_ASSERT( mock_loop_write(inst,ts1,strlen(ts1)+1) == strlen(ts1)+1 );
-	CU_ASSERT( cd_read(hnd,rxb,32) == strlen(ts1)+1 );
-	CU_ASSERT_STRING_EQUAL(rxb,ts1);
+	// put a receiving string into the loopback driver's Rx buffer in loop/0
+	// then read it using the serial stack's API
+	printf("Testing full RECEIVE - placing data into loopback RX buffer :: %s\n", ts1);
+	CU_ASSERT_FATAL( mock_loop_write(inst,ts1,strlen(ts1)+1) == strlen(ts1)+1 );
+	CU_ASSERT_FATAL( cd_read(hnd,rxb,32) == strlen(ts1)+1 );
+	printf("  readback :: %s\n", rxb);
+	CU_ASSERT_STRING_EQUAL_FATAL(rxb,ts1);
+
+	// write a string out on the serial stack's API then pull the contents
+	// of the loopback driver's Tx buffer and compare it.
+	printf("Testing full TRANSMIT - sending :: %s\n", ts2);
+	CU_ASSERT_FATAL( cd_write(hnd,ts2,strlen(ts2)+1) == strlen(ts2)+1 );
+	CU_ASSERT_FATAL( mock_loop_read(inst,rxb,32) == strlen(ts2)+1 );
+	printf("  readback :: %s\n", rxb);
+	CU_ASSERT_STRING_EQUAL_FATAL(rxb,ts2);
 
 	cd_close(hnd);
 }
 
 int main() {
+	// char strean driver stack - system init
+	printf("{TDD} Driver Stack Init...\n");
+	System_DriverStartup();
 
 	// Register loopback driver to get it into the driver stack...
 	printf("{TDD} Registering the loopback driver...\n");
 	loopback_Register();
 
-	printf("{TDD} Initializing the Driver Stack...\n");
+	printf("{TDD} Initializing the Drivers...\n");
 	System_driverInit();
 
     CU_pSuite pSuite = NULL;

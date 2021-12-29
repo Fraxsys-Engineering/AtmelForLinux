@@ -28,7 +28,7 @@
 /* Driver Private Data - Per Instance --------------------------------*/
 
 typedef struct loopback_data_type {
-    int dev_handle;         // globally assigned device handle, 1+
+    int dev_handle;         // globally assigned device handle, 1+ AKA "file handle"
     int inst_index;         // The instance number. more than one can be open at the same time, if needed.
     char * in_buffer;       // MOCK incoming char data stream. See test usage, below
     char * out_buffer;      // MOCK outgoining char data stream. See test usage, below
@@ -55,12 +55,14 @@ typedef struct loopback_data_type {
 /* Driver Private Data - Global Context ------------------------------*/
 
 typedef struct loopback_context_type {
-    // newly open loopback instances are stashed here. array indexing
-    // directs new instances by forming the index into the list.
-    // eg. user opens "/dev/loop/1" so instance saved into instlist[1]
-    //     generates error if there is already an entry in index 1.
-    //     list starts out all pre-filled with NULLS
-    // IMPORTANT - data is malloc'd and so must be free'd when closed.
+	// MINOR DEVICE INFO:
+    //   newly open loopback instances are stashed here. array indexing
+    //   directs new instances by forming the index into the list.
+    //   eg. user opens "/dev/loop/1" so instance saved into instlist[1]
+    //       generates error if there is already an entry in index 1.
+    //       list starts out all pre-filled with NULLS
+    //   IMPORTANT - data is malloc'd and so must be free'd when closed.
+    //   IMPORTANT - indexed by MINOR number, *NOT* file handle!
     loopback_data_t * instlist[MAX_LOOPBACK_INSTANCES];
 
 } loopback_ctx_t;
@@ -69,6 +71,40 @@ static loopback_ctx_t _loopback_ctx;
 
 static const char driver_name_prefix[] = "/dev/loop/";
 
+static loopback_data_t * s_find_minor_ctx_by_minor_num( int minor ) {
+	// simple indexing lookup...
+	loopback_data_t * ctx = NULL;
+	if ( minor >= 0 && minor < MAX_LOOPBACK_INSTANCES ) {
+		ctx = _loopback_ctx.instlist[minor];
+	}
+	return ctx; // no guarantees it actually contains anything...
+}
+
+static loopback_data_t * s_find_minor_ctx_by_filehandle( int hndl ) {
+	// find an entry with a matching file handle (device handle)
+	loopback_data_t * ctx = NULL;
+	int iter;
+	for ( iter = 0 ; iter < MAX_LOOPBACK_INSTANCES ; ++iter ) {
+		if ( _loopback_ctx.instlist[iter] && _loopback_ctx.instlist[iter]->dev_handle == hndl) {
+			ctx = _loopback_ctx.instlist[iter];
+			break;
+		}
+	}
+	return ctx;
+}
+
+static int s_find_minor_ctxidx_by_filehandle( int hndl ) {
+	// find an entry with a matching file handle (device handle)
+	int cidx = -1;
+	int iter;
+	for ( iter = 0 ; iter < MAX_LOOPBACK_INSTANCES ; ++iter ) {
+		if ( _loopback_ctx.instlist[iter] && _loopback_ctx.instlist[iter]->dev_handle == hndl) {
+			cidx = iter;
+			break;
+		}
+	}
+	return cidx;
+}
 
 /* Driver Methods ----------------------------------------------------*/
 
@@ -116,9 +152,9 @@ static int loopdev_open(const char * name, const int mode) {
                     loopinst->in_len     = 0;
                     loopinst->out_len    = 0;
                     _loopback_ctx.instlist[minor] = loopinst;
-                    rc = loopinst->dev_handle;
+                    rc = loopinst->dev_handle; // AKA "file handle"
 #ifdef TDD_PRINTF
-                    printf("{loopdev_open} minor[%d] OPENED.\n", minor);
+                    printf("{loopdev_open} minor[%d] OPENED for handle[%d]\n", minor, rc);
 #endif    
                 }
             }
@@ -129,48 +165,49 @@ static int loopdev_open(const char * name, const int mode) {
 
 
 // close( (void *) opctx ) --> STATUS
-static int loopdev_close(void * opctx) {
+static int loopdev_close(int hndl) {
     int rc = -1;
+    int cidx = s_find_minor_ctxidx_by_filehandle(hndl); 
+	loopback_data_t * ctx = (cidx >= 0) 
+		? _loopback_ctx.instlist[cidx] 
+		: NULL;
 #ifdef TDD_PRINTF
-    printf("{loopdev_close}\n");
-#endif    
-    if (opctx) {
-        loopback_data_t * loopinst = (loopback_data_t *)opctx;
-        // use the internal index to find the registration in the driver
-        // and then close out the instance. Loopback needs only to 
-        // delete the underlying memory.
-        int idx = loopinst->inst_index;
+    printf("{loopdev_close} handle[%d] ctx_idx[%d]\n", hndl, cidx);
+#endif
+	if (ctx) {
 #ifdef TDD_PRINTF
-        printf("{loopdev_close} minor[%d]\n", idx);
-#endif    
-        if (_loopback_ctx.instlist[idx] == loopinst) {
-            // memory confirmed. take it down
-            free( _loopback_ctx.instlist[idx]->in_buffer );
-            free( _loopback_ctx.instlist[idx]->out_buffer );
-            free( _loopback_ctx.instlist[idx] );
-            _loopback_ctx.instlist[idx] = NULL;
+		int minst = ctx->inst_index;
+#endif
+		free( ctx->in_buffer );
+		free( ctx->out_buffer );
+		free( _loopback_ctx.instlist[cidx] );
+		_loopback_ctx.instlist[cidx] = NULL;
 #ifdef TDD_PRINTF
-            printf("{loopdev_close} minor[%d] CLOSED.\n", idx);
+		printf("{loopdev_close} deleted minor device instance [%d] from the instance list\n",minst);
+#endif
+		rc = 0;
+	}
+#ifdef TDD_PRINTF
+	else {
+		printf("{loopdev_close} Error, minor device not found for given handle!\n");
+	}
 #endif    
-            rc = 0;
-        }
-    }
     return rc;
 }
 
 
 // read( (void *) opctx, (char *)buffer, (int)len ) --> readcount | STATUS
-static int loopdev_read(void * opctx, char * buf, int maxlen) {
+static int loopdev_read(int hndl, char * buf, int maxlen) {
     int rc = -1;
+    loopback_data_t * inst = s_find_minor_ctx_by_filehandle(hndl); 
 #ifdef TDD_PRINTF
-    printf("{loopdev_read}\n");
+    printf("{loopdev_read} handle[%d] max-read[%d]\n", hndl, maxlen);
 #endif    
-    if (opctx) {
-        loopback_data_t * inst = (loopback_data_t *)opctx;
+    if (inst) {
         rc = 0;
         while (maxlen && (inst->in_len > 0)  ) {
             *(buf ++) = inst->in_buffer[ inst->in_head ];
-            if (++inst->in_head >= inst->in_buflen) {
+            if (++(inst->in_head) >= inst->in_buflen) {
                 inst->in_head = 0;
             }
             maxlen --;
@@ -178,22 +215,30 @@ static int loopdev_read(void * opctx, char * buf, int maxlen) {
             rc ++;
         }
     }
+#ifdef TDD_PRINTF
+	else {
+		printf("{loopdev_read} Error, minor device not found for given handle!\n");
+	}
+	if (rc >= 0) {
+		printf("{loopdev_read} handle[%d] minor[%d] read[%d]\n", hndl, inst->inst_index, rc);
+	}
+#endif    
     return rc;
 }
 
 
 // write( (void *) opctx, (char *)buffer, (int)len ) --> writecount | STATUS
-static int loopdev_write(void * opctx, char * buf, int len) {
+static int loopdev_write(int hndl, const char * buf, int len) {
     int rc = -1;
+    loopback_data_t * inst = s_find_minor_ctx_by_filehandle(hndl); 
 #ifdef TDD_PRINTF
-    printf("{loopdev_write}\n");
+    printf("{loopdev_write} handle[%d] max-write[%d]\n", hndl, len);
 #endif    
-    if (opctx) {
-        loopback_data_t * inst = (loopback_data_t *)opctx;
+    if (inst) {
         rc = 0;
         while (len && (inst->out_len < inst->out_buflen)) {
             inst->out_buffer[ inst->out_tail ] = *(buf ++);
-            if (++inst->out_tail >= inst->out_buflen) {
+            if (++(inst->out_tail) >= inst->out_buflen) {
                 inst->out_tail = 0;
             }
             len --;
@@ -201,36 +246,58 @@ static int loopdev_write(void * opctx, char * buf, int len) {
             rc ++;
         }
     }
+#ifdef TDD_PRINTF
+	else {
+		printf("{loopdev_write} Error, minor device not found for given handle!\n");
+	}
+	if (rc >= 0) {
+		printf("{loopdev_write} handle[%d] minor[%d] wrote[%d]\n", hndl, inst->inst_index, rc);
+	}
+#endif    
     return rc;
 }
 
 
 // reset( (void *) opctx, ) --> STATUS
-static int loopdev_reset(void * opctx) {
+static int loopdev_reset(int hndl) {
     int rc = -1;
+    loopback_data_t * inst = s_find_minor_ctx_by_filehandle(hndl); 
 #ifdef TDD_PRINTF
-    printf("{loopdev_reset}\n");
+    printf("{loopdev_reset} handle[%d]\n", hndl);
 #endif    
-    if (opctx) {
-        loopback_data_t * inst = (loopback_data_t *)opctx;
+    if (inst) {
         inst->in_head = inst->in_tail = inst->in_len = 0;
         inst->out_head = inst->out_tail = inst->out_len = 0;
         rc = 0;
     }
+#ifdef TDD_PRINTF
+	else {
+		printf("{loopdev_reset} Error, minor device not found for given handle!\n");
+	}
+#endif    
     return rc;
 }
 
 
 // Loopback device has no I/O control commands
 // ioctl( (void *) opctx, (int)cmd, (int *)val ) --> STATUS
-static int loopdev_ioctl(void * opctx, int cmd, int * val) {
+static int loopdev_ioctl(int hndl, int cmd, int * val) {
     int rc = -1;
+    loopback_data_t * inst = s_find_minor_ctx_by_filehandle(hndl); 
 #ifdef TDD_PRINTF
-    printf("{loopdev_ioctl}\n");
+	if (val)
+		printf("{loopdev_ioctl} handle[%d] cmd[%d] val[%d]\n", hndl, cmd, *val);
+	else
+		printf("{loopdev_ioctl} handle[%d] cmd[%d] val[<NULL>]\n", hndl, cmd);
 #endif    
-    if (opctx) {
+    if (inst) {
         rc = 0;
     }
+#ifdef TDD_PRINTF
+	else {
+		printf("{loopdev_ioctl} Error, minor device not found for given handle!\n");
+	}
+#endif    
     return rc;
 }
 
@@ -245,9 +312,7 @@ static hdriver_t _loopback_inst = {
     loopdev_write,              // write    (ctx)
     loopdev_reset,              // reset    (ctx)
     loopdev_ioctl,              // ioctl    (ctx)
-    0,                          // handle, idx to context table
-    (void *)&_loopback_ctx,     // driver-class opaque data     (global)
-    NULL                        // driver-instance opaque data  (ctx, loopback_data_t*)
+    (void *)&_loopback_ctx      // driver-class opaque data     (global)
 };
 
 /* Driver Registration - Called by main() ----------------------------*/
@@ -262,21 +327,23 @@ int loopback_Register(void) {
 /* Mock Hooks - Backend I/O Operations -------------------------------*/
 
 // check to see if a mock instance has been setup. 
+// (!) "instance" is the driver's open MINOR number device! It is *NOT* the file handle.
 // Return: treat as a bool. True := instance established.
 int mock_loop_check_instance(int instance) {
 #ifdef TDD_PRINTF
     printf("{mock_loop_check_instance} inst[%d]\n", instance);
-#endif    
-    return (_loopback_ctx.instlist[instance]) ? 1 : 0;
+#endif
+	loopback_data_t * inst = s_find_minor_ctx_by_minor_num(instance);
+    return (inst) ? 1 : 0;
 }
 
 int mock_loop_write(int instance, const char * buf, int len) {
     int rc = -1;
+    loopback_data_t * inst = s_find_minor_ctx_by_minor_num(instance);
 #ifdef TDD_PRINTF
-    printf("{mock_loop_write} inst[%d] :: ---> [%s]\n", instance, buf);
+    printf("{mock_loop_write} inst[%d] max-write[%d]\n", instance, len);
 #endif    
-    if (_loopback_ctx.instlist[instance]) {
-        loopback_data_t * inst = _loopback_ctx.instlist[instance];
+    if (inst) {
         rc = 0;
         while (len && (inst->in_len < inst->in_buflen)) {
             inst->in_buffer[ inst->in_tail ] = *(buf ++);
@@ -293,10 +360,11 @@ int mock_loop_write(int instance, const char * buf, int len) {
 
 int mock_loop_read(int instance, char * buf, int maxlen) {
     int rc = -1;
+    loopback_data_t * inst = s_find_minor_ctx_by_minor_num(instance);
 #ifdef TDD_PRINTF
-    printf("{mock_loop_read} inst[%d]\n", instance);
+    printf("{mock_loop_read} inst[%d] max-read[%d]\n", instance, maxlen);
 #endif    
-    if (_loopback_ctx.instlist[instance]) {
+    if (inst) {
         loopback_data_t * inst = _loopback_ctx.instlist[instance];
         rc = 0;
         while (maxlen && (inst->out_len > 0)  ) {
@@ -309,12 +377,6 @@ int mock_loop_read(int instance, char * buf, int maxlen) {
             rc ++;
         }
     }
-#ifdef TDD_PRINTF
-	if (rc > 0) {
-		buf[rc] = '\0';
-		printf("{mock_loop_read} :: <--- [%s]\n", buf);
-	}
-#endif    
     return rc;
 }
 

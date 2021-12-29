@@ -43,11 +43,24 @@
  *                        to something else
  *        Returns:        0 on success, -1 on failure.
  * 
- * STRING LIMITS
+ * LIMITS
+ * Limits can be over-ridden at compile time using an external define
+ * parameter (-D).
  * 
- * [1] Maximum length of a device "name" descriptor, with all arguments
- *     Set MAX_DEVSTRN_LEN as-needed. If not defined at compile time then
- *     a maximum limit of 32 characters is established.
+ * [1] MAX_DEVSTRN_LEN
+ *     Maximum length of a device "name" descriptor, with all arguments
+ *     Set MAX_DEVSTRN_LEN as-needed. Default: 32 characters.
+ * 
+ * [2] MAX_OPEN_DESCRIPTORS
+ *     Maximum number of descriptors that can be opened at any point in
+ *     time. Default is 8.
+ * 
+ * [3] MAX_CHAR_DRIVERS
+ *     (This should be internally adjusted as more drivers are added to
+ *      the library)
+ *     Define the maximum number of char stream driver types that can 
+ *     be registered for use by user applications.
+ * 
  ***************************************************************************/
 
 /* STATUS: Written, not compiled */
@@ -69,26 +82,38 @@ typedef volatile uint32_t * sfr32p_t;
 #define MAX_DEVSTRN_LEN  32
 #endif
 
+// Maximum number of allowed simultaneously open file descriptors.
+// needed to create a static descriptor registration table.
+#ifndef MAX_OPEN_DESCRIPTORS
+#define MAX_OPEN_DESCRIPTORS 8
+#endif
+
+// Maximum number of driver types that can be registered. Expand this as
+// more char stream drivers are added to the library.
+#ifndef MAX_CHAR_DRIVERS
+#define MAX_CHAR_DRIVERS  2
+#endif
+
 // init( void ) --> void
 typedef void (*f_init)( void );
 
 // open( (const char *)name, (const int) mode ) --> file_handle | STATUS
 typedef int (*f_open)(const char *, const int);
 
-// close( (void *) opctx ) --> STATUS
-typedef int (*f_close)(void *);
+// close( (int) hndl ) --> STATUS
+typedef int (*f_close)(int);
 
-// read( (void *) opctx, (char *)buffer, (int)len ) --> readcount | STATUS
-typedef int (*f_read)(void *, char *, int );
+// read( (int) hndl, (char *)buffer, (int)len ) --> readcount | STATUS
+typedef int (*f_read)(int, char *, int );
 
-// write( (void *) opctx, (char *)buffer, (int)len ) --> writecount | STATUS
-typedef int (*f_write)(void *, char *, int );
+// write( (int) hndl, (char *)buffer, (int)len ) --> writecount | STATUS
+typedef int (*f_write)(int, const char *, int );
 
-// reset( (void *) opctx, ) --> STATUS
-typedef int (*f_reset)(void *);
+// reset( (int) hndl ) --> STATUS
+typedef int (*f_reset)(int);
 
-// ioctl( (void *) opctx, (int)cmd, (int *)val ) --> STATUS
-typedef int (*f_ioctl)(void *, int, int * );
+// ioctl( (int) hndl, (int)cmd, (int *)val ) --> STATUS
+typedef int (*f_ioctl)(int, int, int * );
 
 typedef struct driverhandle_type {
     f_init    init;     // init     (global)
@@ -98,18 +123,18 @@ typedef struct driverhandle_type {
     f_write   write;    // write    (ctx)
     f_reset   reset;    // reset    (ctx)
     f_ioctl   ioctl;    // ioctl    (ctx)
-    int       fhandle;  // handle, idx to context table (global, set to zero)
     void *    opdrvr;   // driver-class opaque data     (global) (*1)
-    void *    opctx;    // driver-instance opaque data  (ctx)    (*2)
 } hdriver_t;
 // Notes
 // *1   - global driver has this pointer setup in it's instance and it
 //        points to the single global data structure for managing all
-//        active instances of the same driver type.
-// *2   - global driver object instance has this set to NULL. When 
-//        copied, the parameter will be updated to reflact the instance
-//        being used in the call.
+//        active instances of the same driver type. Any info for minor
+//        devices will be buried inside of this "global" driver data
+//        and it is up to each driver to manage that.
 
+// Driver stack intial setup. THIS MUST BE CALLED FIRST BEFORE ALL 
+// OTHER CALLS, INCLUDING DRIVER REGISTRATIONS.
+extern void System_DriverStartup(void);
 
 // Register Driver Class - Called once by each generic character driver
 // type eg. serialdriver. This registers the class with a namespace
@@ -123,9 +148,14 @@ extern int Driver_registerClass(const char * ns_proto, hdriver_t * stack);
 // handle to the new instance.
 extern int Driver_getHandle(void);
 
-// System Initialization - The user main loop can call a public API
-// to init internal drivers. This function will get called and will go
-// to each registered driver and call it's init() function.
+// Called by Driver's close() function, this returns a file handle, cleaning
+// up any cached handle/driver hash table entries and freeing up this 
+// handle slot for future usage.
+extern void Driver_returnHandle(int driver_handle);
+
+// Registered Driver Initialization - This function will call each 
+// registered driver and initialize it. This would be called *AFTER* 
+// System_DriverStartup() *AND* all individual driver registration calls.
 extern int System_driverInit(void);
 
 // Called by the public API, this function is used to obtain a handle to
@@ -135,14 +165,8 @@ extern int System_driverInit(void);
 extern int System_driverInstance(const char * name, int mode);
 
 // Called by chardev code, this function returns the driver handle to 
-// an open driver instance. Returns NULL if the given file_handle is
-// invalid.
-// USAGE: Caller creates a struct of type hdriver_t on it's stack. The
-//        pointer to this memory is passed in ('instmem') and driver 
-//        info is copied into it. The pointer is also returned and may be 
-//        NULL on error.
-//        Once the caller function leaves its scope, the local copied
-//        driver info is lost. Further calls will repeat the process.
-extern hdriver_t * CharDev_Get_Instance(int driver_handle, hdriver_t * instmem);
+// an open driver instance (minor device). Returns NULL if the given 
+// file_handle is invalid.
+extern const hdriver_t * CharDev_Get_Instance(int driver_handle);
 
 #endif /* _DRIVER_H_ */

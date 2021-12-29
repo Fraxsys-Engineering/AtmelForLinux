@@ -76,7 +76,7 @@ extern int cd_read(int file_handle, char * buf, int len);
  *   'len'          [in]    # bytes to copy out of 'buf'
  *   Returns:               # chars copied (0+) | DEV_FAIL
  *********************************************************************/
-extern int cd_write(int file_handle, char * buf, int len);
+extern int cd_write(int file_handle, const char * buf, int len);
 
 /**********************************************************************
  * IOCTL
