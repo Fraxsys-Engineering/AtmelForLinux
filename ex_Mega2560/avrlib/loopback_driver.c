@@ -9,9 +9,20 @@
  *
  * IMPORTANT - This driver expects to be able to dynamically allocate
  *             memory. This may not be possible to use on an AVR target.
+ * 
+ * MANDITORY COMPILER DEFINES
+ * 
+ *   LOOPBACK_DRIVER  			enables the driver and allows it's 
+ *                              registration
+ * 
+ * OPTIONAL COMPILER DEFINES
+ * 
+ *   MAX_LOOPBACK_INSTANCES 	set the number of minor loopback devices
+ *   IN_BUFFER_ALLOC_SZ         set the size of each minor device Rx FIFO
+ *   OUT_BUFFER_ALLOC_SZ		set the size of each minor device Tx FIFO
  ***************************************************************************/
 
-/* STATUS: Written, not compiled */
+#ifdef LOOPBACK_DRIVER
 
 #include <string.h>
 #include <stdio.h>
@@ -21,9 +32,15 @@
 
 //#define TDD_PRINTF -- define in Makefile. For use by ATDD only!
 
-#define MAX_LOOPBACK_INSTANCES  8           /* max. number of allowed minor devices */
-#define IN_BUFFER_ALLOC_SZ      1024
-#define OUT_BUFFER_ALLOC_SZ     1024
+#ifndef MAX_LOOPBACK_INSTANCES
+  #define MAX_LOOPBACK_INSTANCES  8           /* max. number of allowed minor devices */
+#endif
+#ifndef IN_BUFFER_ALLOC_SZ
+  #define IN_BUFFER_ALLOC_SZ      1024
+#endif
+#ifndef OUT_BUFFER_ALLOC_SZ
+  #define OUT_BUFFER_ALLOC_SZ     1024
+#endif
 
 /* Driver Private Data - Per Instance --------------------------------*/
 
@@ -105,6 +122,14 @@ static int s_find_minor_ctxidx_by_filehandle( int hndl ) {
 	}
 	return cidx;
 }
+
+/* (!) Used only by loopback testing functions! */
+/*
+static int s_find_minornum_by_filehandle( int hndl ) {
+	loopback_data_t * ctx = s_find_minor_ctx_by_filehandle(hndl);
+	return (ctx) ? ctx->inst_index : -1;
+}
+*/
 
 /* Driver Methods ----------------------------------------------------*/
 
@@ -290,12 +315,25 @@ static int loopdev_ioctl(int hndl, int cmd, int * val) {
 	else
 		printf("{loopdev_ioctl} handle[%d] cmd[%d] val[<NULL>]\n", hndl, cmd);
 #endif    
-    if (inst) {
-        rc = 0;
+    if (inst && val) {
+		switch (cmd) {
+        case CMD_RX_PEEK:   // (cmd) --> (int)n   returns # bytes waiting in Rx buffer
+			*val = inst->in_len;
+			rc = 0;
+			break;
+        
+        case CMD_TX_PEEK:   // (cmd) --> (int)n   returns # bytes of space available in Tx buffer
+			*val = inst->out_len;
+			rc = 0;
+			break;
+		
+		default:
+			rc = -1;
+		}
     }
 #ifdef TDD_PRINTF
 	else {
-		printf("{loopdev_ioctl} Error, minor device not found for given handle!\n");
+		printf("{loopdev_ioctl} Error, minor device not found for given handle?\n");
 	}
 #endif    
     return rc;
@@ -380,4 +418,13 @@ int mock_loop_read(int instance, char * buf, int maxlen) {
     return rc;
 }
 
+int mock_loop_reset(int instance) {
+	int rc = -1;
+	loopback_data_t * inst = s_find_minor_ctx_by_minor_num(instance);
+	if (inst) {
+		rc = loopdev_reset(inst->dev_handle);
+	}
+	return rc;
+}
 
+#endif /* LOOPBACK_DRIVER */

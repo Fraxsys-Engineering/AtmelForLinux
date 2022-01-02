@@ -3,8 +3,8 @@ NAME := serialtest
 
 ## LIBRARY SUPPORT (base dir ../avrlib)
 VPATH=../avrlib
-LIB_SRC := serialdriver.c dblink.c
-LIB_HDR := serialdriver.h dblink.h
+LIB_SRC := driver.c chardev.c serialdriver.c dblink.c
+LIB_HDR := driver.h chardev.h ioctlcmds.h serialdriver.h dblink.h
 
 ## Sourcefiles, manually entered
 #SOURCES := foo.c bar.c etc...
@@ -63,6 +63,9 @@ CFLAGS += -Os
 #CFLAGS += -O0 -g
 
 CFLAGS += -std=c99 -mmcu=$(MCU) -DF_CPU=$(CPU_CLK) -I..
+
+## USER Compiler definitions etc.
+CFLAGS += -DUART_ENABLE_PORT_1
 
 CC := avr-gcc
 OBJCOPY := avr-objcopy

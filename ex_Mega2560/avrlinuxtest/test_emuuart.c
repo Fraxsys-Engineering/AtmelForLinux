@@ -1,7 +1,7 @@
 /*
- * test_chardriverstack.c
+ * test_emuuart.c
  *
- * TDD For avrlib/(character driver stack with loopback)
+ * TDD For avrlib/(character driver stack with emulated AVR UART Driver)
  *
  * Supports lib ver: 1.0
  *
@@ -14,13 +14,21 @@
 #include <CUnit/CUnit.h>
 #include <CUnit/Basic.h>
 
+#ifndef UART_ENABLE_EMU_1
+ #error "EMULATED UART MINOR DEVICE 1 HAS TO BE ENABLED USING DEFINE: UART_ENABLE_EMU_1 !"
+#endif
 
 // MOCK backend hooks, for testing and inserting character stream
 // data, etc.
-extern int mock_loop_check_instance(int instance);
-extern int mock_loop_write(int instance, const char * buf, int len);
-extern int mock_loop_read(int instance, char * buf, int maxlen);
-extern int mock_loop_reset(int instance);
+extern uint8_t uart_emu1_rd_dummyreg_udr1(void);
+extern uint8_t uart_emu1_rd_dummyreg_ucsr1a(void);
+extern uint8_t uart_emu1_rd_dummyreg_ucsr1b(void);
+extern uint8_t uart_emu1_rd_dummyreg_ucsr1c(void);
+extern uint8_t uart_emu1_rd_dummyreg_ubrr1h(void);
+extern uint8_t uart_emu1_rd_dummyreg_ubrr1l(void);
+extern int uart_emu1_get_tx(char * strn, int maxread);
+extern int uart_emu1_put_rx(const char * strn, int len);
+
 
 // ======== TEST SUITE ================================================
 
@@ -33,7 +41,7 @@ int clean_suite(void) {
 }
 
 void test_chardriverstack(void) {
-	int inst = 0;
+	int inst = 1;
 	const char ts1[] = "test string1\n";
 	const char ts2[] = "test string2\n";
 	char rxb[32];
@@ -41,18 +49,33 @@ void test_chardriverstack(void) {
 	
 	printf("\n"); // CUnit annoyingly does not CR when adding a print stating that it is starting this test...
 	
-	sprintf(rxb,"/dev/loop/%d",inst);
+    // All these device open attempts should FAIL
+    CU_ASSERT_FATAL( cd_open("/dev/part/1",0) < 1 );
+    CU_ASSERT_FATAL( cd_open("/dev/uart",0) < 1 );
+    CU_ASSERT_FATAL( cd_open("/dev/uart/5",0) < 1 );
+    CU_ASSERT_FATAL( cd_open("/dev/uart/1,100",0) < 1 );
+    CU_ASSERT_FATAL( cd_open("/dev/uart/1,9600,",0) < 1 );
+    CU_ASSERT_FATAL( cd_open("/dev/uart/1,9600,10",0) < 1 );
+    CU_ASSERT_FATAL( cd_open("/dev/uart/1,9600,8,",0) < 1 );
+    CU_ASSERT_FATAL( cd_open("/dev/uart/1,9600,8,Q",0) < 1 );
+    CU_ASSERT_FATAL( cd_open("/dev/uart/1,9600,8,N,",0) < 1 );
+    CU_ASSERT_FATAL( cd_open("/dev/uart/1,9600,5,E,3",0) < 1 );
+    
+	sprintf(rxb,"/dev/uart/%d,9600,8,N,1",inst);
 	printf(" Opening device: %s\n", rxb);
 	hnd = cd_open(rxb, 0);
 	CU_ASSERT_FATAL( hnd >= 0 );
 	
-	// make sure loopback instance <inst> was created.
-	CU_ASSERT_FATAL( mock_loop_check_instance(inst) == 1 );
-	
+    printf("Examining UART Register settings made...\n");
+    printf("  UDR1[0x%02x]  UCSR1A[0x%02x]  UCSR1B[0x%02x]  UCSR1C[0x%02x]  UBRR1H[0x%02x]  UBRR1L[0x%02x]\n",
+        uart_emu1_rd_dummyreg_udr1(), uart_emu1_rd_dummyreg_ucsr1a(), 
+        uart_emu1_rd_dummyreg_ucsr1b(), uart_emu1_rd_dummyreg_ucsr1c(),
+        uart_emu1_rd_dummyreg_ubrr1h(), uart_emu1_rd_dummyreg_ubrr1l() );
+    
 	// put a receiving string into the loopback driver's Rx buffer in loop/0
 	// then read it using the serial stack's API
-	printf("Testing full RECEIVE - placing data into loopback RX buffer :: %s\n", ts1);
-	CU_ASSERT_FATAL( mock_loop_write(inst,ts1,strlen(ts1)+1) == strlen(ts1)+1 );
+	printf("Testing full RECEIVE - placing data into emulated RX buffer :: %s\n", ts1);
+	CU_ASSERT_FATAL( uart_emu1_put_rx(ts1,strlen(ts1)+1) == strlen(ts1)+1 );
 	CU_ASSERT_FATAL( cd_read(hnd,rxb,32) == strlen(ts1)+1 );
 	printf("  readback :: %s\n", rxb);
 	CU_ASSERT_STRING_EQUAL_FATAL(rxb,ts1);
@@ -61,47 +84,9 @@ void test_chardriverstack(void) {
 	// of the loopback driver's Tx buffer and compare it.
 	printf("Testing full TRANSMIT - sending :: %s\n", ts2);
 	CU_ASSERT_FATAL( cd_write(hnd,ts2,strlen(ts2)+1) == strlen(ts2)+1 );
-	CU_ASSERT_FATAL( mock_loop_read(inst,rxb,32) == strlen(ts2)+1 );
+	CU_ASSERT_FATAL( uart_emu1_get_tx(rxb,32) == strlen(ts2)+1 );
 	printf("  readback :: %s\n", rxb);
 	CU_ASSERT_STRING_EQUAL_FATAL(rxb,ts2);
-
-	// Partial Rx, Tx operations
-	
-	printf("Testing Partial RECEIVE - placing data into loopback RX buffer :: %s\n", ts1);
-	CU_ASSERT_FATAL( mock_loop_write(inst,ts1,strlen(ts1)+1) == strlen(ts1)+1 );
-	CU_ASSERT_FATAL( cd_read(hnd,rxb,5) == 5 );
-	CU_ASSERT_NSTRING_EQUAL_FATAL( rxb,"test ",5);
-	printf("  readback (multi-stage)...");
-	CU_ASSERT_FATAL( cd_read(hnd,rxb,32) == 9 );
-	CU_ASSERT_STRING_EQUAL_FATAL( rxb,"string1\n");
-	
-	// operations on multiple open minor numbers
-	{
-		int inst2 = 1;
-		int hnd2 = -1;
-		int val;
-		const char ts3[] = "test string3\n";
-		char rxb2[32];
-		
-		sprintf(rxb2,"/dev/loop/%d",inst2);
-		printf(" Opening device: %s\n", rxb2);
-		hnd2 = cd_open(rxb2, 0);
-		CU_ASSERT_FATAL( hnd2 >= 0 );
-		printf(" Opening second device: %s\n", rxb2);
-		
-		mock_loop_reset(inst);
-		//mock_loop_reset(inst2);
-		
-		printf("Checking for data cross-device transmission (should be none.)\n");
-		CU_ASSERT_FATAL( mock_loop_write(inst,ts1,strlen(ts1)+1) == strlen(ts1)+1 );
-		CU_ASSERT_FATAL( cd_ioctl(hnd, CMD_RX_PEEK, &val) == 0);
-		CU_ASSERT_FATAL( val == strlen(ts1)+1 );
-		CU_ASSERT_FATAL( cd_ioctl(hnd2, CMD_RX_PEEK, &val) == 0);
-		CU_ASSERT_FATAL( val == 0 );
-		CU_ASSERT_FATAL( cd_read(hnd2,rxb2,32) == 0 );
-		
-		cd_close(hnd2);
-	}
 
 	cd_close(hnd);
 }

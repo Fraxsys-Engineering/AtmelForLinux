@@ -36,11 +36,34 @@ typedef struct chardev_fh_entry_type {
 static chardev_fh_t open_filehandle_table[MAX_OPEN_DESCRIPTORS] = {0};
 static int open_filehandle_count = 0;
 
-// local working string buffer - not reent safe!
-//static char name_buffer[MAX_DEVSTRN_LEN];
-
 // GLOBAL active device instance number (1+). Zero not valid.
 static int last_instance = 0;
+
+
+
+// customizable driver registration system. Add potential drivers as
+// they are coded into this function and companion definitions
+#ifdef LOOPBACK_DRIVER
+  extern int loopback_Register(void);
+#endif
+
+#if defined(UART_ENABLE_PORT_0) || defined(UART_ENABLE_PORT_1) || defined(UART_ENABLE_PORT_2) || defined(UART_ENABLE_PORT_3) || defined(UART_ENABLE_EMU_1)
+  #define ADD_DRIVER_UART 1
+  extern int uart_Register(void); // serialdriver.c
+#else
+  #define ADD_DRIVER_UART  0
+#endif
+
+static void setup_drivers(void) {
+#ifdef LOOPBACK_DRIVER
+	loopback_Register();
+#endif
+#if (ADD_DRIVER_UART==1)	
+	uart_Register();
+#endif
+}
+
+
 
 // System Initialization - *** CALL FIRST! ***
 void System_DriverStartup(void) {
@@ -50,6 +73,8 @@ void System_DriverStartup(void) {
 		open_filehandle_table[iter].driver = NULL;
 	}
 	open_filehandle_count = 0;
+	// now register all enabled major driver types
+	setup_drivers();
 }
 
 // Register Driver Class - Called once by each generic character driver

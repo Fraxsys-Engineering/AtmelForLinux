@@ -11,11 +11,11 @@
 ## template.
 TEST_stringutils := test_stringutils
 TEST_chardriverstack := test_chardriverstack
-
+TEST_emuuart := test_emuuart
 
 ## SECTION -B- ------------------------------------------------------
 ## mention all test suites to be bundled together when running 'make all'
-ALL_TESTS := $(TEST_stringutils) $(TEST_chardriverstack)
+ALL_TESTS := $(TEST_stringutils) $(TEST_chardriverstack) $(TEST_emuuart)
 
 
 ## LIBRARY SUPPORT (base dir ../avrlib)
@@ -28,21 +28,25 @@ SRC_stringutils := $(TEST_stringutils).c stringutils.c
 HDR_stringutils := stringutils.h
 OBJ_stringutils := $(patsubst %.c,%.o,$(SRC_stringutils))
 
-SRC_chardriverstack := $(TEST_chardriverstack).c chardev.c driver.c loopback_driver.c
+SRC_chardriverstack := $(TEST_chardriverstack).c chardev.c driver.c serialdriver.c loopback_driver.c
 HDR_chardriverstack := chardev.h driver.h
 OBJ_chardriverstack := $(patsubst %.c,%.o,$(SRC_chardriverstack))
+
+SRC_emuuart := $(TEST_emuuart).c chardev.c driver.c serialdriver.c loopback_driver.c
+HDR_emuuart := chardev.h driver.h
+OBJ_emuuart := $(patsubst %.c,%.o,$(SRC_emuuart))
 
 
 # SECTION -D- -------------------------------------------------------
 # Concat all header dependancies together. it only means that *any* header
 # change will force a re-build of all test regardless of whether the test
-# uses that header or not... 
-HEADERS := $(HDR_stringutils) $(HDR_chardriverstack)
+# uses that header or not... duplicated header mentions are discarded.
+HEADERS := $(HDR_stringutils) $(HDR_chardriverstack) $(HDR_emuuart)
 
 
 LIBS = -lm -lcunit
 CC = gcc
-CFLAGS = -g -Wall -DTDD_PRINTF -I..
+CFLAGS = -g -Wall -DTDD_PRINTF -DLOOPBACK_DRIVER -DUART_ENABLE_EMU_1 -I..
 
 .PHONY: default all clean cleanall run_all
 
@@ -59,8 +63,11 @@ run_$(TEST_stringutils):
 run_$(TEST_chardriverstack):
 	./$(TEST_chardriverstack)
 
+run_$(TEST_emuuart):
+	./$(TEST_emuuart)
 
-run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack)
+
+run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack) run_$(TEST_emuuart)
 
 clean:
 	-rm -f *.o

@@ -68,14 +68,13 @@
 #ifndef _DRIVER_H_
 #define _DRIVER_H_
 
+#include <stdint.h>
 #include "ioctlcmds.h"
 
-#if 0
 // Atmel Internal register pointer types
 typedef volatile uint8_t *  sfr8p_t;
 typedef volatile uint16_t * sfr16p_t;
 typedef volatile uint32_t * sfr32p_t;
-#endif
 
 // Maximum limits - needed for creating static length string buffers, etc.
 #ifndef MAX_DEVSTRN_LEN
@@ -132,9 +131,15 @@ typedef struct driverhandle_type {
 //        devices will be buried inside of this "global" driver data
 //        and it is up to each driver to manage that.
 
+
+
 // Driver stack intial setup. THIS MUST BE CALLED FIRST BEFORE ALL 
-// OTHER CALLS, INCLUDING DRIVER REGISTRATIONS.
+// OTHER CALLS
+// Note: This also now registers all enabled drivers. Drivers are enabled
+//        through specific define switches, see serialdriver.c for examples
+//        eg. UART_ENABLE_PORT_0
 extern void System_DriverStartup(void);
+
 
 // Register Driver Class - Called once by each generic character driver
 // type eg. serialdriver. This registers the class with a namespace
@@ -144,19 +149,23 @@ extern void System_DriverStartup(void);
 // return a file handle number.
 extern int Driver_registerClass(const char * ns_proto, hdriver_t * stack);
 
+
 // Called by Driver's open() function, this allocates a new global file
 // handle to the new instance.
 extern int Driver_getHandle(void);
+
 
 // Called by Driver's close() function, this returns a file handle, cleaning
 // up any cached handle/driver hash table entries and freeing up this 
 // handle slot for future usage.
 extern void Driver_returnHandle(int driver_handle);
 
+
 // Registered Driver Initialization - This function will call each 
 // registered driver and initialize it. This would be called *AFTER* 
 // System_DriverStartup() *AND* all individual driver registration calls.
 extern int System_driverInit(void);
+
 
 // Called by the public API, this function is used to obtain a handle to
 // a driver instance for usage. The handle is returned by an instance
@@ -164,9 +173,11 @@ extern int System_driverInit(void);
 // Returns: driver_handle, or -1 on error.
 extern int System_driverInstance(const char * name, int mode);
 
+
 // Called by chardev code, this function returns the driver handle to 
 // an open driver instance (minor device). Returns NULL if the given 
 // file_handle is invalid.
 extern const hdriver_t * CharDev_Get_Instance(int driver_handle);
+
 
 #endif /* _DRIVER_H_ */
