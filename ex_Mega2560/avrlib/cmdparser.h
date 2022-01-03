@@ -66,7 +66,15 @@
 
 #include <stdint.h>
 
-typedef int (*cmdparsefcn)(int, const char *);
+typedef enum cmdStatus_type {
+    CMD_FAIL          = -1,
+    CMD_ERROR_UNKNOWN = -2,
+    CMD_ERROR_SYNTAX  = -3,
+    CMD_POLL_FAIL     = -4,
+    CMD_SUCCESS       = 0
+} cndStatus_t;
+
+typedef int (*cmdparsefcn)(int, const char **);
 
 typedef struct cmdobj_type {
     static const char * noun;       /* primary key (noun) long form */
@@ -82,12 +90,12 @@ typedef enum cmdstatus_type {
     PCMD_SUCCESS = 0
 } cmdstatus;
 
-extern const cmdobj * pCommandList;
+extern cmdobj * const pCommandList[];
 
 /* Commands can call these to feed data back to the terminal during 
  * processing.
- * String data does not have to be terminated in a CR/LF, it will be
- * added by the parser.
+ * (N) String data has to be EOL ('\0') terminated.
+ * (N) Functions WILL NOT add "\r\n" to the end of strings! You must do this.
  * (!) Calls will block if TX Buffers are full and return only when all
  *     data has been transferred to the buffer.
  */
@@ -95,7 +103,7 @@ int pSendString(const char * text);
 int pSendHexByte(const uint8_t val);
 int pSendHexShort(const uint16_t val);
 int pSendHexLong(const uint32_t val);
-int pSendInt(const int val);
+int pSendInt(const int32_t val);
 
 /* User main loop should call this to poll the command parser. It 
  * blocks until a received command is completed.

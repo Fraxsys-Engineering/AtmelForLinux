@@ -10,9 +10,6 @@
 #ifndef _DBLINK_H_
 #define _DBLINK_H_
 
-#include <avr/io.h>
-#include <util/delay.h>
-
 #define LED_PIN_DDR DDRB
 #define LED_PIN_BIT DDB7
 #define LED_PIN_PRT PORTB 

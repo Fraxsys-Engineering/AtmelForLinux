@@ -12,11 +12,12 @@
 TEST_stringutils := test_stringutils
 TEST_chardriverstack := test_chardriverstack
 TEST_emuuart := test_emuuart
+#TEST_parser := test_parser
 
 ## SECTION -B- ------------------------------------------------------
 ## mention all test suites to be bundled together when running 'make all'
+#ALL_TESTS := $(TEST_stringutils) $(TEST_chardriverstack) $(TEST_emuuart) $(TEST_parser)
 ALL_TESTS := $(TEST_stringutils) $(TEST_chardriverstack) $(TEST_emuuart)
-
 
 ## LIBRARY SUPPORT (base dir ../avrlib)
 VPATH=../avrlib
@@ -36,11 +37,16 @@ SRC_emuuart := $(TEST_emuuart).c chardev.c driver.c serialdriver.c loopback_driv
 HDR_emuuart := chardev.h driver.h
 OBJ_emuuart := $(patsubst %.c,%.o,$(SRC_emuuart))
 
+SRC_parser := $(TEST_parser).c chardev.c driver.c serialdriver.c loopback_driver.c cmdparser.c
+HDR_parser := chardev.h driver.h cmdparser.h
+OBJ_parser := $(patsubst %.c,%.o,$(SRC_parser))
+
 
 # SECTION -D- -------------------------------------------------------
 # Concat all header dependancies together. it only means that *any* header
 # change will force a re-build of all test regardless of whether the test
 # uses that header or not... duplicated header mentions are discarded.
+#HEADERS := $(HDR_stringutils) $(HDR_chardriverstack) $(HDR_emuuart) $(HDR_parser)
 HEADERS := $(HDR_stringutils) $(HDR_chardriverstack) $(HDR_emuuart)
 
 
@@ -66,8 +72,12 @@ run_$(TEST_chardriverstack):
 run_$(TEST_emuuart):
 	./$(TEST_emuuart)
 
+#run_$(TEST_parser):
+#	./$(TEST_parser)
 
-run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack) run_$(TEST_emuuart)
+#run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack) run_$(TEST_emuuart)
+run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack)
+
 
 clean:
 	-rm -f *.o

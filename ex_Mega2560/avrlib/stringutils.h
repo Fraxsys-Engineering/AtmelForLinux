@@ -20,6 +20,25 @@
 #define SU_USE_PREFIX 	1
 #define SU_NO_PREFIX 	0
 
+// Calculate string lengths
+int32_t sutil_strlen(const char * s);
+
+// copy strings
+int32_t sutil_strcpy(char * to, char * from);
+
+// Simple string token parsing.
+// Given a string buffer 'b', find the first occurance matching any 
+// character in buffer 'm'. The found token is replaced by a EOL '\0'.
+// The function returns the pointer to the next char in 'b' beyond the
+// replaced character to allow for further parsing.
+// If nothing is found then NULL is returned.
+// If at the end of 'b' then the returning pointer will be the '\0' 
+// found at the end of 'b'.
+char * sutil_strtok(char * b, const char * m);
+
+// string compare (simple)
+int sutil_strcmp(const char * a, const char * b);
+
 // sutil_nibble()
 // convert the high or low nibble of a byte value in 'n' into its 
 // corresponding ASCII-HEX character (0-9,A-F|a-f).
@@ -53,6 +72,15 @@ uint8_t sutil_asciihex_word(char * at, uint16_t hval, uint8_t prefix, uint8_t uc
 // - 
 // return # bytes advanced into 'at'
 uint8_t sutil_asciihex_long(char * at, uint32_t hval, uint8_t prefix, uint8_t uc);
+
+// sutil_asciinumber()
+// Encode a given integer value (positive or negative) into a given string
+// in base10.
+// (!) Given buffer must be at least 12 bytes, to cover +/- max ranges of 
+//     a 32-bit integer.
+// - 
+// return # bytes advanced into 'at'
+uint8_t sutil_asciinumber(char * at, int32_t ival);
 
 
 #endif /* _STRINGUTILS_H_ */
