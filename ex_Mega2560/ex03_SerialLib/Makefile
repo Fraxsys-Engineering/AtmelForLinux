@@ -4,7 +4,7 @@ NAME := serialtest
 ## LIBRARY SUPPORT (base dir ../avrlib)
 VPATH=../avrlib
 LIB_SRC := driver.c chardev.c serialdriver.c dblink.c
-LIB_HDR := driver.h chardev.h ioctlcmds.h serialdriver.h dblink.h
+LIB_HDR := driver.h chardev.h ioctlcmds.h serialdriver.h dblink.h libtime.h
 
 ## Sourcefiles, manually entered
 #SOURCES := foo.c bar.c etc...

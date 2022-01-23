@@ -10,6 +10,9 @@
 #include "libtime.h"
 #include "cmdparser.h"
 #include "chardev.h"
+#ifdef TDD_PRINTF
+ #include <stdio.h>
+#endif
 
 #ifndef P_MAX_VERBCOUNT
 #define P_MAX_VERBCOUNT 2
@@ -27,12 +30,15 @@
 #define TEMP_BUF_LEN    64
 #endif
 
-static const char sInit[] = "AVRLIB Command Parser Version 1.0";
+static const char sInit[] = "AVRLIB Command Parser Version 1.0\r\n";
 static const char sErrVerbCount[] = "Error (invalid arg count)\r\n";
 static const char sErrFail[]      = "Error (command fail)\r\n";
 static const char sErrUnknown[]   = "Error (unknown command)\r\n";
 static const char sErrCmdSyntax[] = "Error (command syntax)\r\n";
 static const char sErrInternal[]  = "Error (internal)\r\n";
+#ifdef P_OK_ON_SUCCESS
+static const char sSuccess[]  = "\r\nOK\r\n";
+#endif
 
 //                            CMD_FAIL  CMD_ERROR_UNKNOWN CMD_ERROR_SYNTAX CMD_POLL_FAIL
 const char * sCmdErrList[] = {sErrFail, sErrUnknown,      sErrCmdSyntax,   sErrInternal};
@@ -51,7 +57,10 @@ char   tempbuf[TEMP_BUF_LEN];
 int pSendString(const char * text) {
     int rc = CMD_FAIL;
     if (serdesc > 0) {
-        int len = strlen(text);
+        int len = sutil_strlen(text);
+#ifdef TDD_PRINTF
+        printf("{pSendString} text[%s] len[%d]\n", (text)?text:"<NULL>", len);
+#endif    
         int remlen = len;
         int sp = 0;
         int sent = cd_write(serdesc, text+sp, remlen);
@@ -109,6 +118,10 @@ int pSendInt(const int32_t val) {
 int pollParser(void) {
     int rc = CMD_FAIL;
     if (serdesc > 0) {
+#ifdef TDD_PRINTF
+        printf("{pollParser}\n");
+#endif    
+        int handled = 0;
         /* Build the command buffer with incoming data until 
          * crlf received.
          */
@@ -123,6 +136,9 @@ int pollParser(void) {
                     if (sutil_strlen(cb) > P_MAX_VERBLEN)
                         cb[P_MAX_VERBLEN] = '\0'; // TRUNCATE!
                     sutil_strcpy(noun,cb);
+#ifdef TDD_PRINTF
+                    printf("{pollParser} NOUN[%s]\n", noun);
+#endif    
                 }
                 // pull out any verbs
                 verbcount = 0;
@@ -131,30 +147,45 @@ int pollParser(void) {
                     n = sutil_strtok(cb, " \r\n");
                     if (n) {
                         verbv[verbcount++] = cb;
+#ifdef TDD_PRINTF
+                        printf("{pollParser} VERB[%s]\n", cb);
+#endif    
                     }
                 }
                 // look for the command
                 i = 0;
-                while (pCommandList[i]) {
-                    if (sutil_strcmp(noun, pCommandList[i]->noun) == 0 || 
-                        sutil_strcmp(noun, pCommandList[i]->nsc) == 0  ) {
+                while (pCommandList[i].noun) {
+                    if (sutil_strcmp(noun, pCommandList[i].noun) == 0 || 
+                        sutil_strcmp(noun, pCommandList[i].nsc) == 0  ) {
                         // -- COMMAND MATCH
-                        if (verbcount < pCommandList[i]->verb_min ||
-                            verbcount > pCommandList[i]->verb_max ) {
+                        if (verbcount < pCommandList[i].verb_min ||
+                            verbcount > pCommandList[i].verb_max ) {
                             // Syntax Error (mis-matching verb count)
                             pSendString(sErrVerbCount);
                             break;
                         }
-                        i = pCommandList[i]->cp(verbcount, (const char **)verbv);
+#ifdef TDD_PRINTF
+                        printf("{pollParser} found command, calling...\n");
+#endif    
+                        i = pCommandList[i].cp(verbcount, (const char **)verbv);
                         if (i < 0) {
                             // invert error and use to lookup error code
                             i = i * -1;
                             i = i - 1;
                             pSendString(sCmdErrList[i]);
                         }
+#ifdef P_OK_ON_SUCCESS
+                        else {
+                            pSendString(sSuccess);
+                        }
+#endif
+                        handled = 1;
                         break;
                     }
                     i ++;
+                }
+                if (!handled) {
+                    pSendString(sErrUnknown);
                 }
                 // when cleaning up after cmd parsing, reset the command
                 // buffer pointers and clean up the buffer.
@@ -162,6 +193,9 @@ int pollParser(void) {
                 cmdptr = 0;
                 rc = CMD_SUCCESS;
             }
+#ifdef TDD_PRINTF
+            printf("{pollParser} Exit\n");
+#endif    
         } else if (rc < 0) {
             rc = CMD_POLL_FAIL;
         }
@@ -169,7 +203,7 @@ int pollParser(void) {
     return rc;
 }
 
-int startParser(const char * serialdev. int mode) {
+int startParser(const char * serialdev, int mode) {
     int rc = CMD_FAIL;
     if (serdesc <= 0) {
         serdesc = cd_open(serialdev, mode);

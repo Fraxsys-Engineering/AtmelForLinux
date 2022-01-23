@@ -12,12 +12,12 @@
 TEST_stringutils := test_stringutils
 TEST_chardriverstack := test_chardriverstack
 TEST_emuuart := test_emuuart
-#TEST_parser := test_parser
+TEST_cmdparser := test_cmdparser
 
 ## SECTION -B- ------------------------------------------------------
 ## mention all test suites to be bundled together when running 'make all'
-#ALL_TESTS := $(TEST_stringutils) $(TEST_chardriverstack) $(TEST_emuuart) $(TEST_parser)
-ALL_TESTS := $(TEST_stringutils) $(TEST_chardriverstack) $(TEST_emuuart)
+ALL_TESTS := $(TEST_stringutils) $(TEST_chardriverstack) $(TEST_emuuart) $(TEST_cmdparser)
+#ALL_TESTS := $(TEST_stringutils) $(TEST_chardriverstack) $(TEST_emuuart)
 
 ## LIBRARY SUPPORT (base dir ../avrlib)
 VPATH=../avrlib
@@ -37,22 +37,22 @@ SRC_emuuart := $(TEST_emuuart).c chardev.c driver.c serialdriver.c loopback_driv
 HDR_emuuart := chardev.h driver.h
 OBJ_emuuart := $(patsubst %.c,%.o,$(SRC_emuuart))
 
-SRC_parser := $(TEST_parser).c chardev.c driver.c serialdriver.c loopback_driver.c cmdparser.c
-HDR_parser := chardev.h driver.h cmdparser.h
-OBJ_parser := $(patsubst %.c,%.o,$(SRC_parser))
+SRC_cmdparser := $(TEST_cmdparser).c chardev.c driver.c serialdriver.c loopback_driver.c stringutils.c libtime.c cmdparser.c
+HDR_cmdparser := chardev.h driver.h stringutils.h libtime.h cmdparser.h
+OBJ_cmdparser := $(patsubst %.c,%.o,$(SRC_cmdparser))
 
 
 # SECTION -D- -------------------------------------------------------
 # Concat all header dependancies together. it only means that *any* header
 # change will force a re-build of all test regardless of whether the test
 # uses that header or not... duplicated header mentions are discarded.
-#HEADERS := $(HDR_stringutils) $(HDR_chardriverstack) $(HDR_emuuart) $(HDR_parser)
-HEADERS := $(HDR_stringutils) $(HDR_chardriverstack) $(HDR_emuuart)
+HEADERS := $(HDR_stringutils) $(HDR_chardriverstack) $(HDR_emuuart) $(HDR_cmdparser)
+#HEADERS := $(HDR_stringutils) $(HDR_chardriverstack) $(HDR_emuuart)
 
 
 LIBS = -lm -lcunit
 CC = gcc
-CFLAGS = -g -Wall -DTDD_PRINTF -DLOOPBACK_DRIVER -DUART_ENABLE_EMU_1 -I..
+CFLAGS = -g -Wall -DTDD_PRINTF -DLOOPBACK_DRIVER -DUART_ENABLE_EMU_1 -DEMULATE_LIB -DP_OK_ON_SUCCESS -I..
 
 .PHONY: default all clean cleanall run_all
 
@@ -72,11 +72,11 @@ run_$(TEST_chardriverstack):
 run_$(TEST_emuuart):
 	./$(TEST_emuuart)
 
-#run_$(TEST_parser):
-#	./$(TEST_parser)
+run_$(TEST_cmdparser):
+	./$(TEST_cmdparser)
 
-#run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack) run_$(TEST_emuuart)
-run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack)
+run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack) run_$(TEST_emuuart) run_$(TEST_cmdparser)
+#run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack)
 
 
 clean:

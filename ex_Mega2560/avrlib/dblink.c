@@ -3,6 +3,7 @@
  * Debugging support library
  *********************************************************************/
 
+#include <avr/io.h>
 #include "dblink.h"
 #include "libtime.h"
 

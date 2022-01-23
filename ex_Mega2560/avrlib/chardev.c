@@ -66,7 +66,7 @@ int cd_close(int file_handle) {
 
 int cd_read(int file_handle, char * buf, int len) {
 #ifdef TDD_PRINTF
-	printf("{cd_read} handle[%d]\n",file_handle);
+	printf("{cd_read} handle[%d] maxlen[%d]\n",file_handle, len);
 #endif
     const hdriver_t * dh = CharDev_Get_Instance(file_handle);
     int rc = -1;
@@ -84,7 +84,7 @@ int cd_read(int file_handle, char * buf, int len) {
 
 int cd_write(int file_handle, const char * buf, int len) {
 #ifdef TDD_PRINTF
-	printf("{cd_write} handle[%d]\n",file_handle);
+	printf("{cd_write} handle[%d] len[%d]\n",file_handle, len);
 #endif
     const hdriver_t * dh = CharDev_Get_Instance(file_handle);
     int rc = -1;

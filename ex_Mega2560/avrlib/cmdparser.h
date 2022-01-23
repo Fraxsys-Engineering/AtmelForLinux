@@ -58,6 +58,9 @@
  *  P_MAX_VERBLEN       the longest verb in any command
  *  P_MAX_CMDLEN        maximum characters to buffer for set of all 
  *                      commands.
+ *  P_OK_ON_SUCCESS     Parser returns a '\r\nOK\r\n' if function 
+ *                      returns CMD_SUCCESS. This define just needs to 
+ *                      be set, no value is required (switch)
  * 
  ***************************************************************************/
 
@@ -77,8 +80,8 @@ typedef enum cmdStatus_type {
 typedef int (*cmdparsefcn)(int, const char **);
 
 typedef struct cmdobj_type {
-    static const char * noun;       /* primary key (noun) long form */
-    static const char * nsc;        /* optional noun shortened form */
+    const char * noun;       /* primary key (noun) long form */
+    const char * nsc;        /* optional noun shortened form */
     unsigned int        verb_min;   /* minimum # expected verbs     */
     unsigned int        verb_max;   /* maximum # expected verbs     */
     cmdparsefcn         cp;         /* function to call to parse    */
@@ -90,7 +93,7 @@ typedef enum cmdstatus_type {
     PCMD_SUCCESS = 0
 } cmdstatus;
 
-extern cmdobj * const pCommandList[];
+extern cmdobj pCommandList[];
 
 /* Commands can call these to feed data back to the terminal during 
  * processing.

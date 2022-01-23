@@ -16,14 +16,11 @@
  * 
  ***************************************************************************/
 
-#include "libtime.h"
 
 #ifdef EMULATE_LIB
- #include <unistd.h>
-#else
- #include <avr/io.h>
- #include <util/delay.h>
-#endif
+
+#include <unistd.h>
+#include "libtime.h"
 
 /* --------------------------------------------------------------------
  * tm_delay_ms()
@@ -31,12 +28,11 @@
  * milliseconds. The delay is a non-negative integer time and not a
  * floating point value (as used in the AVR native delay).
  * ------------------------------------------------------------------*/
-void tm_delay_ms(uint32_t delay) {
-#ifdef EMULATE_LIB
-    useconds_t udelay = (useconds_t)delay * 1000;
+void tm_delay_ms(double delay) {
+    useconds_t udelay = (useconds_t)(delay * 1000.0);
     usleep(udelay);
-#else
-    _delay_ms((double)delay);
-#endif
 }
+
+#endif /* EMULATE_LIB */
+
 
