@@ -41,12 +41,13 @@ static int cmd_foo(int vc, const char * verbs[]) {
 	char vb1[20];
 	strcpy(vb1,"<nil>");
 	
-	pSendString("cmd_foo\r\n");
+	pSendString("cmd_foo");
     if (vc == 1) {
 		strcpy(vb1,verbs[0]);
         pSendString("/");
         pSendString(vb1);
 	}
+    pSendString("\r\n");
 	printf("(cmd_foo) vc:%d v1:%s\n", vc, vb1);
 	return CMD_SUCCESS;
 }
@@ -86,9 +87,14 @@ void test_cmdparser(void) {
     char cmdbad[] = "bart\r\n";
     char cmd1[] = "foo\r\n";
     char cmd1_resp[] = "cmd_foo";
+    char cmd2[] = "foo 3\r\n";
+    char cmd2_resp[] = "cmd_foo/3";
+    char cmd3[] = "bar badverb\r\n";
+    char cmd4[] = "b\r\n";
+    char cmd4_resp[] = "cmd_bar";
+    char cmd5[] = "foo 3 4\r\n";
     char resp_ok[] = "\r\nOK\r\n";
     char resp_err[] = "Error (";
-    
 
 	printf("\n"); // CUnit annoyingly does not CR when adding a print stating that it is starting this test...
 	
@@ -99,13 +105,15 @@ void test_cmdparser(void) {
 	// make sure loopback instance <inst> was created.
 	CU_ASSERT_FATAL( mock_loop_check_instance(inst) == 1 );
 
-    // loopback should be holding the Parser "login" header 'pHeader'
+    // [1] loopback should be holding the Parser "login" header 'pHeader'
     len = mock_loop_read(inst,rxb,128);
     rxb[len] = '\0';
     printf("{test_cmdparser} (readback) Parser Header :: %s", rxb);
     CU_ASSERT_STRING_EQUAL_FATAL(rxb,pHeader);
 	
-    // more operations, driven by the polling loop.
+    // [2] Test invalid command
+    
+    printf("\n***[2]***\n");
     mock_loop_write(inst,cmdbad,strlen(cmdbad));
     pollParser();
     len = mock_loop_read(inst,rxb,128);
@@ -113,6 +121,9 @@ void test_cmdparser(void) {
     printf("{test_cmdparser} (readback) Cmd Resp :: %s", rxb);
     CU_ASSERT_FATAL( StringContains(rxb,resp_err) );
 
+    // [3] command w/ no parameters (verbs)
+    
+    printf("\n***[3]***\n");
     mock_loop_write(inst,cmd1,strlen(cmd1));
     pollParser();
     len = mock_loop_read(inst,rxb,128);
@@ -121,6 +132,47 @@ void test_cmdparser(void) {
     CU_ASSERT_FATAL( StringContains(rxb,cmd1_resp) );
     CU_ASSERT_FATAL( StringContains(rxb,resp_ok) );
     
+    // [4] command w/ verbs
+    
+    printf("\n***[4]***\n");
+    mock_loop_write(inst,cmd2,strlen(cmd2));
+    pollParser();
+    len = mock_loop_read(inst,rxb,128);
+    rxb[len] = '\0';
+    printf("{test_cmdparser} (readback) Cmd Resp :: %s", rxb);
+    CU_ASSERT_FATAL( StringContains(rxb,cmd2_resp) );
+    CU_ASSERT_FATAL( StringContains(rxb,resp_ok) );
+    
+    // [5] send verbs to a command that does not accept them
+    
+    printf("\n***[5]***\n");
+    mock_loop_write(inst,cmd3,strlen(cmd3));
+    pollParser();
+    len = mock_loop_read(inst,rxb,128);
+    rxb[len] = '\0';
+    printf("{test_cmdparser} (readback) Cmd Resp :: %s", rxb);
+    CU_ASSERT_FATAL( StringContains(rxb,resp_err) );
+    
+    // [6] command short form
+    
+    printf("\n***[6]***\n");
+    mock_loop_write(inst,cmd4,strlen(cmd4));
+    pollParser();
+    len = mock_loop_read(inst,rxb,128);
+    rxb[len] = '\0';
+    printf("{test_cmdparser} (readback) Cmd Resp :: %s", rxb);
+    CU_ASSERT_FATAL( StringContains(rxb,cmd4_resp) );
+    CU_ASSERT_FATAL( StringContains(rxb,resp_ok) );
+    
+    // [7] too many verbs (send 2 to 'foo')
+    
+    printf("\n***[7]***\n");
+    mock_loop_write(inst,cmd5,strlen(cmd5));
+    pollParser();
+    len = mock_loop_read(inst,rxb,128);
+    rxb[len] = '\0';
+    printf("{test_cmdparser} (readback) Cmd Resp :: %s", rxb);
+    CU_ASSERT_FATAL( StringContains(rxb,resp_err) );
     
     // just exit, parser cannot be closed...
 

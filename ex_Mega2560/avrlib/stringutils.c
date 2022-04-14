@@ -36,6 +36,17 @@ int32_t sutil_strcpy(char * to, char * from) {
     return fp;
 }
 
+int32_t sutil_memcpy(void * to, void * from, int len) {
+    int32_t cc = 0;
+    uint8_t * cto = (uint8_t *)to;
+    uint8_t * cfr = (uint8_t *)from;
+    while (to && from && len > 0) {
+        *cto = *cfr;
+        cto++; cfr++; cc++; len--;
+    }
+    return cc;
+}
+
 //#include <stdio.h>
 // Simple string token parsing.
 // Given a string buffer 'b', find the first occurance matching any 

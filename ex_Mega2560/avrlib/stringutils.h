@@ -26,6 +26,9 @@ int32_t sutil_strlen(const char * s);
 // copy strings
 int32_t sutil_strcpy(char * to, char * from);
 
+// copy mem
+int32_t sutil_memcpy(void * to, void * from, int len);
+
 // Simple string token parsing.
 // Given a string buffer 'b', find the first occurance matching any 
 // character in buffer 'm'. The found token is replaced by a EOL '\0'.

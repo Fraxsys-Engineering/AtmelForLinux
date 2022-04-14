@@ -66,9 +66,11 @@ int pSendString(const char * text) {
         int sent = cd_write(serdesc, text+sp, remlen);
         while (sent >= 0 && sp < len) {
             sp += sent;
-            remlen -= sp;
-            tm_delay_ms(10);
-            sent = cd_write(serdesc, text+sp, remlen);
+            remlen -= sent;
+            if (remlen > 0) {
+                tm_delay_ms(10);
+                sent = cd_write(serdesc, text+sp, remlen);
+            }
         }
         rc = (sent >=0) ? DEV_SUCCESS : DEV_FAIL;
     }
@@ -115,6 +117,22 @@ int pSendInt(const int32_t val) {
     return rc;
 }
 
+void pEcho(char * c, int len) {
+    if (serdesc > 0) {
+        int remlen = len;
+        int sp = 0;
+        int sent = cd_write(serdesc, c+sp, remlen);
+        while (sent >= 0 && sp < len) {
+            sp += sent;
+            remlen -= sent;
+            if (remlen > 0) {
+                tm_delay_ms(10);
+                sent = cd_write(serdesc, c+sp, remlen);
+            }
+        }
+    }
+}
+
 int pollParser(void) {
     int rc = CMD_FAIL;
     if (serdesc > 0) {
@@ -127,8 +145,10 @@ int pollParser(void) {
          */
         rc = cd_read(serdesc, cmdbuffer+cmdptr, (P_MAX_CMDLEN-cmdptr));
         if (rc > 0) {
+            pEcho(cmdbuffer+cmdptr, rc);
             cmdptr += rc;
             if (cmdptr && (cmdbuffer[cmdptr-1] == '\r' || cmdbuffer[cmdptr-1] == '\n')) {
+                pSendString("\r\n");
                 // pull out the noun, then any following verbs
                 int i;
                 char * n = sutil_strtok(cb, " \r\n");
@@ -191,11 +211,11 @@ int pollParser(void) {
                 // buffer pointers and clean up the buffer.
                 cb = &(cmdbuffer[0]);
                 cmdptr = 0;
-                rc = CMD_SUCCESS;
             }
 #ifdef TDD_PRINTF
             printf("{pollParser} Exit\n");
-#endif    
+#endif
+            rc = CMD_SUCCESS;
         } else if (rc < 0) {
             rc = CMD_POLL_FAIL;
         }
