@@ -3,4 +3,9 @@
 *.hex
 *.out
 *.map
+ex_Mega2560/avrlinuxtest/test_chardriverstack
+ex_Mega2560/avrlinuxtest/test_cmdparser
+ex_Mega2560/avrlinuxtest/test_emuuart
+ex_Mega2560/avrlinuxtest/test_gpioapi
+ex_Mega2560/avrlinuxtest/test_stringutils
 

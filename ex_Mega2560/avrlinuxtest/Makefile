@@ -82,9 +82,7 @@ run_$(TEST_cmdparser):
 run_$(TEST_gpioapi):
 	./$(TEST_gpioapi)
 
-run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack) run_$(TEST_emuuart) run_$(TEST_cmdparser)
-#run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack)
-
+run_all: run_$(TEST_stringutils) run_$(TEST_chardriverstack) run_$(TEST_emuuart) run_$(TEST_cmdparser) run_$(TEST_gpioapi)
 
 clean:
 	-rm -f *.o
