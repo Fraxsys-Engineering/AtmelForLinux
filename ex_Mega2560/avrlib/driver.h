@@ -70,11 +70,7 @@
 
 #include <stdint.h>
 #include "ioctlcmds.h"
-
-// Atmel Internal register pointer types
-typedef volatile uint8_t *  sfr8p_t;
-typedef volatile uint16_t * sfr16p_t;
-typedef volatile uint32_t * sfr32p_t;
+#include "avrlib.h"
 
 // Maximum limits - needed for creating static length string buffers, etc.
 #ifndef MAX_DEVSTRN_LEN

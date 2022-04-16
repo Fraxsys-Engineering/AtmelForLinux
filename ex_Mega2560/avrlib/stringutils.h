@@ -9,7 +9,7 @@
 #ifndef _STRINGUTILS_H_
 #define _STRINGUTILS_H_
 
-#include <stdint.h>  // uint8_t etc.
+#include "avrlib.h"  // uint8_t etc.
 
 #define SU_HI_NIBBLE 	1
 #define SU_LO_NIBBLE 	0
