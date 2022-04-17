@@ -28,6 +28,7 @@
 #include <avrlib/stringutils.h>
 #include <avrlib/driver.h>
 #include <avrlib/cmdparser.h>
+#include <avrlib/gpio_api.h>
 #include <avrlib/dblink.h>
 
 const char * sHelp  = "\
@@ -110,6 +111,7 @@ int main () {
 	// Setup the System drivers and the driver stack
 	System_DriverStartup();
     System_driverInit();
+    //pm_init(); <-- dblink will now handle this for you.
 	blink_init();
 	
     // Open Command Perser's interface
@@ -121,6 +123,36 @@ int main () {
 
 	// Send the test start confirmation string...
     pSendString(starts);
+
+#if 0
+    {
+        char nbuf[8];
+        uint8_t byt, len;
+        uint16_t addr;
+        // debug gpio_api using dblink
+        // dblink uses PortB, Pin 7. It should be set to output.
+        // [1] Check DDRB, PORTB for state
+        // [2] Report the address of DDRB
+        pSendString("DDRB[");
+        byt = DDRB;
+        len = sutil_asciihex_byte(nbuf, byt, SU_NO_PREFIX, SU_LOWERCASE);
+        nbuf[len] = '\0';
+        pSendString(nbuf);
+        pSendString("] PORTB[");
+        byt = PORTB;
+        len = sutil_asciihex_byte(nbuf, byt, SU_NO_PREFIX, SU_LOWERCASE);
+        nbuf[len] = '\0';
+        pSendString(nbuf);
+        pSendString("]\r\n");
+        pSendString("DDRB ADDR[");
+        addr = (uint16_t)&(DDRB);
+        len = sutil_asciihex_word(nbuf, addr, SU_NO_PREFIX, SU_LOWERCASE);
+        nbuf[len] = '\0';
+        pSendString(nbuf);
+        pSendString("]\r\n");
+    }
+#endif
+
 
     while (1) {
         _delay_ms(20);

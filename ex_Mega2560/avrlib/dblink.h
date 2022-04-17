@@ -1,18 +1,14 @@
 /**********************************************************************
  * dblink.h
  *
- * Debugging support library
+ * Debugging support library - Ver 1.1
  *
- * REQUIRES:
+ * REQUIRES: apio_api, avrlib.h
  *
  *********************************************************************/
 
 #ifndef _DBLINK_H_
 #define _DBLINK_H_
-
-#define LED_PIN_DDR DDRB
-#define LED_PIN_BIT DDB7
-#define LED_PIN_PRT PORTB 
 
 void blink_init(void);
 void blink_once(int count);

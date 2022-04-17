@@ -29,8 +29,8 @@
  *********************************************************************/
 
 #include "gpio_api.h"
+#include <stddef.h>  /* NULL */
 #ifdef EMULATE_LIB
- #include <stddef.h>  /* NULL */
  #include <stdio.h>
  uint8_t MCUCR = 0;
  #define PUD 4
@@ -125,6 +125,14 @@ typedef struct s_handle_type {
 static s_handle reglist[MAX_GPIO_RSVD] = {0};
 static uint16_t s_nxt_hndl = 1; /* 1st valid handle # is 1. handles are dec-by-1 before referecing the port_stat[] list internally. */
 /* -------------------------------------------------------------------*/
+
+/* Initialization State ----------------------------------------------*/
+static uint8_t pm_was_initialized = 0;
+/* -------------------------------------------------------------------*/
+
+uint8_t pm_isInitialized(void) {
+    return pm_was_initialized;
+}
 
 void pm_init(void) {
     // Setup global pin registration tables
@@ -260,6 +268,7 @@ void pm_init(void) {
     }
 #endif
     s_nxt_hndl = 1;
+    pm_was_initialized = 1;
 }
 
 int pm_glb_pup_control(uint8_t pupctrl) {
@@ -334,7 +343,7 @@ static void s_setmode_port(s_portstatus * pp, uint8_t byt, uint8_t mode) {
 int pm_register_pin(uint8_t port, uint8_t pin, uint8_t mode) {
     int rc = PM_ERROR;
     //printf("[pm_register_pin] - port[%d] pin[%d] mode[%d]\n", port, pin, mode );
-    if ((port < PORT_COUNT) && (pin < PM_TOTALPINS) && (mode < PINMODE_TOTALMODES)) {
+    if ((port < PORT_COUNT) && (pin < PM_TOTALPINS) && (mode < PINMODE_TOTALMODES) && (s_nxt_hndl <= MAX_GPIO_RSVD)) {
         if (port_stat[port].pin[pin].bf_exist && (port_stat[port].pin[pin].bf_locked == 0)) {
             //printf("    pin is free... using handle[%d]\n", s_nxt_hndl);
             rc = s_nxt_hndl;
@@ -355,7 +364,7 @@ int pm_register_pin(uint8_t port, uint8_t pin, uint8_t mode) {
 
 int pm_register_prt(uint8_t port, uint8_t byt, uint8_t mode) {
     int rc = PM_ERROR;
-    if ((port < PORT_COUNT) && (mode < PINMODE_TOTALMODES)) {
+    if ((port < PORT_COUNT) && (mode < PINMODE_TOTALMODES) && (s_nxt_hndl <= MAX_GPIO_RSVD)) {
         /* check all pins in this port to see if they are all free */
         uint8_t i, locked = 0;
         for ( i = 0 ; i < PM_TOTALPINS ; ++i ) {

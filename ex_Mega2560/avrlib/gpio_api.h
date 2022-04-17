@@ -97,9 +97,17 @@
 
 /* CALLED BY SYSTEM INIT or MAIN LOOP ONLY - Initialize Gpio --------
  * -
- * Call this once from the main loop or other system initialization 
+ * Call pm_init() once from the main loop or other system initialization 
  * routine.
+ * 
+ * Initialization state can be checked by calling: pm_isInitialized(),
+ * returns True (1) if previously setup.
+ * 
+ * NOTE: (!) GPIO API can be re-initialized again! If only one init is
+ *       desired then check pm_isInitialized() first to check the current
+ *       status.
  * ------------------------------------------------------------------*/
+uint8_t pm_isInitialized(void);
 void pm_init(void);
 
 /* Global Pull-Up Control -------------------------------------------

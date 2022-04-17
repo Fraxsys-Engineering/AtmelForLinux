@@ -1,10 +1,10 @@
 ## Project Name (Executable and Binfile name)
-NAME := parsertest
+NAME := gpiotest
 
 ## LIBRARY SUPPORT (base dir ../avrlib)
 VPATH=../avrlib
-LIB_SRC := stringutils.c driver.c chardev.c serialdriver.c cmdparser.c dblink.c gpio_api.c
-LIB_HDR := stringutils.h driver.h chardev.h ioctlcmds.h serialdriver.h cmdparser.h dblink.h gpio_api.h libtime.h
+LIB_SRC := gpio_api.c dblink.c
+LIB_HDR := gpio_api.h dblink.h libtime.h avrlib.h
 
 ## Sourcefiles, manually entered
 #SOURCES := foo.c bar.c etc...
@@ -65,7 +65,7 @@ CFLAGS += -Os
 CFLAGS += -std=c99 -mmcu=$(MCU) -DF_CPU=$(CPU_CLK) -I..
 
 ## USER Compiler definitions etc.
-CFLAGS += -DUART_ENABLE_PORT_1 -DP_MAX_VERBCOUNT=10 -DP_MAX_VERBLEN=8 -DP_MAX_CMDLEN=80 -DTEMP_BUF_LEN=80 -DP_OK_ON_SUCCESS
+CFLAGS += -DMAX_GPIO_RSVD=2
 
 CC := avr-gcc
 OBJCOPY := avr-objcopy
