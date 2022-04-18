@@ -125,7 +125,7 @@ int main () {
     pSendString(starts);
 
 #if 0
-    {
+    { // test correct port operations in gpio_lib
         char nbuf[8];
         uint8_t byt, len;
         uint16_t addr;
@@ -150,6 +150,20 @@ int main () {
         nbuf[len] = '\0';
         pSendString(nbuf);
         pSendString("]\r\n");
+    }
+#endif
+#if 0
+    { // test why registering second gpio pin fails...
+        int hndl_pb6_led = 0;
+        int hndl_pb5_sw = 0;
+
+        // Setup test LED
+        if ((hndl_pb6_led = pm_register_pin(PM_PORT_B, PM_PIN_6, PINMODE_OUTPUT_LO)) < 1)
+            blink_error(1);
+            
+        // Setup test switch
+        if ((hndl_pb5_sw = pm_register_pin(PM_PORT_B, PM_PIN_5, PINMODE_INPUT_PU)) < 1)
+            blink_error(2);
     }
 #endif
 
