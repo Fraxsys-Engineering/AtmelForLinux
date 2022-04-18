@@ -65,7 +65,7 @@ CFLAGS += -Os
 CFLAGS += -std=c99 -mmcu=$(MCU) -DF_CPU=$(CPU_CLK) -I..
 
 ## USER Compiler definitions etc.
-CFLAGS += -DMAX_GPIO_RSVD=2
+CFLAGS += -DMAX_GPIO_RSVD=3
 
 CC := avr-gcc
 OBJCOPY := avr-objcopy
