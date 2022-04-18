@@ -29,7 +29,7 @@
  *********************************************************************/
 
 #include "gpio_api.h"
-#include <stddef.h>  /* NULL */
+
 #ifdef EMULATE_LIB
  #include <stdio.h>
  uint8_t MCUCR = 0;
@@ -456,6 +456,7 @@ int pm_out(int hndl, uint8_t value) {
     return rc;
 }
 
+// Read the PINx register to get a stable (delayed) value.
 int pm_in(int hndl) {
     int rc = PM_ERROR;
     s_handle * rlst = s_findhndl(hndl);
@@ -463,14 +464,15 @@ int pm_in(int hndl) {
         s_portstatus * pp = rlst->p_port;
         uint8_t pidx = rlst->pinidx;
         if (pidx == PINIDX_PORT) {
-            rc = *(pp->rport);
+            rc = *(pp->rpin);
         } else {
-            rc = (*(pp->rport) & (1<<pidx)) ? 1 : 0;
+            rc = (*(pp->rpin) & (1<<pidx)) ? 1 : 0;
         }
     }
     return rc;
 }
 
+// Write '1' to PINx to toggle the pin in corresponding bit lane
 int pm_tog(int hndl) {
     int rc = PM_ERROR;
     s_handle * rlst = s_findhndl(hndl);
