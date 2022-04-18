@@ -34,5 +34,16 @@
  #include <util/delay.h>
 #endif /* EMULATE_LIB */
 
-#endif /* _LIBTIME_H_ */
+#ifdef EMULATE_LIB
+ /* --------------------------------------------------------------------
+  * tm_delay_us()
+  * Perform a blocking delay for a specific amount of time, in 
+  * microseconds. The delay is a non-negative integer time and not a
+  * floating point value (as used in the AVR native delay).
+  * ------------------------------------------------------------------*/
+ void tm_delay_us(double delay);
+#else
+ #define tm_delay_us  _delay_us
+#endif /* EMULATE_LIB */
 
+#endif /* _LIBTIME_H_ */
