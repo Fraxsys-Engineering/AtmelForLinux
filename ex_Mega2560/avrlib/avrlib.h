@@ -14,6 +14,7 @@
 #define _AVRLIB_H_
 
 #include <stdint.h> 
+#include <stddef.h>  /* NULL */
 
 // Atmel Internal register pointer types
 typedef volatile uint8_t *  sfr8p_t;
