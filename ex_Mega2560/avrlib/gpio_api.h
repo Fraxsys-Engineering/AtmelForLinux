@@ -34,6 +34,9 @@
 #include "avrlib.h"
 
 #ifdef EMULATE_LIB
+ // (!) IMPORTANT (!) DO NOT SET TEST PORT COUNT BEYOND PORT-G
+ //     The Addressing for PortH and beyond lies in a separate memory
+ //     region and will break the test buffer, causing an overflow.
  #define TEST_PORT_COUNT  2  /* PortA, PortB */
  #define TEST_REGR_COUNT  (TEST_PORT_COUNT*3)
 #endif

@@ -77,21 +77,21 @@
 #define GP_G_DDR    (GP_ADDR_OFFSET+0x13)
 #define GP_G_PRT    (GP_ADDR_OFFSET+0x14)
 /* - */
-#define GP_H_PIN    (GP_ADDR_OFFSET+0x100)
-#define GP_H_DDR    (GP_ADDR_OFFSET+0x101)
-#define GP_H_PRT    (GP_ADDR_OFFSET+0x102)
+#define GP_H_PIN    (0x100)
+#define GP_H_DDR    (0x101)
+#define GP_H_PRT    (0x102)
 /* - */
-#define GP_J_PIN    (GP_ADDR_OFFSET+0x103)
-#define GP_J_DDR    (GP_ADDR_OFFSET+0x104)
-#define GP_J_PRT    (GP_ADDR_OFFSET+0x105)
+#define GP_J_PIN    (0x103)
+#define GP_J_DDR    (0x104)
+#define GP_J_PRT    (0x105)
 /* - */
-#define GP_K_PIN    (GP_ADDR_OFFSET+0x106)
-#define GP_K_DDR    (GP_ADDR_OFFSET+0x107)
-#define GP_K_PRT    (GP_ADDR_OFFSET+0x108)
+#define GP_K_PIN    (0x106)
+#define GP_K_DDR    (0x107)
+#define GP_K_PRT    (0x108)
 /* - */
-#define GP_L_PIN    (GP_ADDR_OFFSET+0x109)
-#define GP_L_DDR    (GP_ADDR_OFFSET+0x10A)
-#define GP_L_PRT    (GP_ADDR_OFFSET+0x10B)
+#define GP_L_PIN    (0x109)
+#define GP_L_DDR    (0x10A)
+#define GP_L_PRT    (0x10B)
 /* -------------------------------------------------------------------*/
 
 
