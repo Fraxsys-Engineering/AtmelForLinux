@@ -29,6 +29,10 @@ int32_t sutil_strcpy(char * to, char * from);
 // copy mem
 int32_t sutil_memcpy(void * to, void * from, int len);
 
+// Return index where 'c' is found in 's'. Returns -1 if 'c' is not
+// found.
+int sutil_strchar(const char * s, const char c);
+
 // Simple string token parsing.
 // Given a string buffer 'b', find the first occurance matching any 
 // character in buffer 'm'. The found token is replaced by a EOL '\0'.
@@ -41,6 +45,21 @@ char * sutil_strtok(char * b, const char * m);
 
 // string compare (simple)
 int sutil_strcmp(const char * a, const char * b);
+
+// sutil_ishexstring
+// Check that a string is a 'pure' ASCII-HEX string. Preceeding '0x' or 
+// '0X' is allowed. Value pure values are: 0-9,a-f,A-F,x,X
+// Returns: [uint8_t]/[bool] True(1), False(0)
+uint8_t sutil_ishexstring(const char * hexstring);
+
+// return hex value of char 'c' or (-1) if invalid
+uint8_t sutil_chartohex(const char c);
+
+// sutil_strtohex
+// Convert a hexadecimal string value ([0x],[0X]abcd) to an unsigned
+// integer. Supports 8-bit and 16-bit values only at this time.
+// return the unsigned value in a uint16_t.
+uint16_t sutil_strtohex(const char * hexstring);
 
 // sutil_nibble()
 // convert the high or low nibble of a byte value in 'n' into its 

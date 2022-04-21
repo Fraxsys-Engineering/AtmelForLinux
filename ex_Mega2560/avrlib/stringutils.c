@@ -15,6 +15,15 @@
 
 #define NULL ((void *)0)
 
+static char nbchar_uc[] = "0123456789ABCDEF";
+static char nbchar_lc[] = "0123456789abcdef";
+static char all_ahex[]  = "0123456789abcdefABCDEF";
+static char pure_ahex[] = "xX0123456789abcdefABCDEF";
+/* follows all_ahex[] */
+static uint8_t all_hex_value[]  = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 10, 11, 12, 13, 14, 15 };
+/* follows pure_ahex[] */
+//static uint8_t pure_hex_value[] = {0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 10, 11, 12, 13, 14, 15 };
+
 int32_t sutil_strlen(const char * s) {
     int32_t len = 0;
     while (*s != '\0') {
@@ -45,6 +54,16 @@ int32_t sutil_memcpy(void * to, void * from, int len) {
         cto++; cfr++; cc++; len--;
     }
     return cc;
+}
+
+int sutil_strchar(const char * s, const char c) {
+    int rc = 0;
+    while ( s && *s != '\0' ) {
+        if (c == *s)
+            break;
+        s ++; rc ++;
+    }
+    return (*s == '\0') ? -1 : rc;
 }
 
 //#include <stdio.h>
@@ -115,9 +134,54 @@ int sutil_strcmp(const char * a, const char * b) {
     return 0;
 }
 
+uint8_t sutil_ishexstring(const char * hexstring) {
+    uint8_t isPure = 1;
+    while (hexstring && *hexstring != '\0') {
+        if ( sutil_strchar(pure_ahex, *hexstring) < 0 ) {
+            isPure = 0;
+            break;
+        }
+        hexstring++;
+    }
+    return isPure;
+}
+
+uint8_t sutil_chartohex(const char c) {
+    int i = sutil_strchar(all_ahex, c);
+    return (i >=0) ? all_hex_value[i] : (uint8_t)i;
+}
+
+uint16_t sutil_strtohex(const char * hexstring) {
+    uint16_t  val = 0;
+    uint16_t  len = sutil_strlen(hexstring);
+    uint16_t  pow = 0;
+    char      c;
+    uint16_t  i;
+    uint16_t  n;
+    if (hexstring) {
+        for ( i = len ; i > 0 ; i-- ) {
+            c = (char)hexstring[i-1];
+            if ( sutil_strchar(all_ahex, c) >=0 ) {
+                // can be decoded...
+                if (c >= 'a') {
+                    n = (c - 'a') + 0xa;
+                } else if (c >= 'A') {
+                    n = (c - 'A') + 0xa;
+                } else {
+                    n = (c - '0');
+                }
+                if (pow > 0) {
+                    n <<= pow;
+                }
+                val += n;
+                pow += 4; // bump to next higher nibble location
+            }
+        }
+    }
+    return val;
+}
+
 char sutil_nibble(uint8_t n, uint8_t isHiNibble, uint8_t uc) {
-	static char nbchar_uc[] = "0123456789ABCDEF";
-	static char nbchar_lc[] = "0123456789abcdef";
 	n = (isHiNibble)
 		? (n >> 4) & 0x0f
 		: n & 0x0f;

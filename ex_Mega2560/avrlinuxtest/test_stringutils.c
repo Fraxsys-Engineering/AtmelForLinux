@@ -38,6 +38,23 @@ void test_simple_string_ops(void) {
 
 }
 
+void test_string_to_num(void) {
+    char haystack1[] = "qwertyuio";
+    char haystack2[] = "asdfghjkl";
+    char hexstrn1[]  = "21df";
+    char hexstrn2[]  = "0x21DF";
+    
+    CU_ASSERT( sutil_strchar(haystack1,'u') == 6  );
+    CU_ASSERT( sutil_strchar(haystack2,'u') == -1 );
+    CU_ASSERT( sutil_ishexstring(hexstrn1) == 1   );
+    CU_ASSERT( sutil_ishexstring(hexstrn2) == 1   );
+    CU_ASSERT( sutil_ishexstring(haystack2) == 0  );
+    CU_ASSERT( sutil_strtohex(hexstrn1) == 0x21df );
+    CU_ASSERT( sutil_strtohex(hexstrn2) == 0x21df );
+    CU_ASSERT( sutil_strtohex(hexstrn1+2) == 0xdf );
+
+}
+
 //char * sutil_strtok(char * b, const char * m);
 void test_sutil_strtok(void) {
     char testbuffer[40];
@@ -236,6 +253,7 @@ int main() {
     }
 
     if ( !CU_add_test(pSuite, "test stringutils / test_simple_string_ops()", test_simple_string_ops)            ||
+         !CU_add_test(pSuite, "test stringutils / string to number",      test_string_to_num)                   ||
          !CU_add_test(pSuite, "test stringutils / sutil_nibble()",        test_stringutils_sutil_nibble)        ||
          !CU_add_test(pSuite, "test stringutils / sutil_strtok()",        test_sutil_strtok)                    ||
          !CU_add_test(pSuite, "test stringutils / sutil_asciihex_byte()", test_stringutils_sutil_asciihex_byte) || 
