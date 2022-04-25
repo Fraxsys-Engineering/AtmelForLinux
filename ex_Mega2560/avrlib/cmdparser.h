@@ -108,6 +108,17 @@ int pSendHexShort(const uint16_t val);
 int pSendHexLong(const uint32_t val);
 int pSendInt(const int32_t val);
 
+/* Command can "take over" serial input channel and read characters up
+ * to some arbitrary point and then "release" the stream by returning 
+ * from the command function.
+ * Arguments:
+ *  buf     save buffer
+ *  len     # bytes to read
+ *  tmout   # milliseconds to wait for data.
+ * Returns:  # characters written into 'buf'
+ */
+int preadInputStream(char * buf, int len, uint16_t tmout);
+
 /* User main loop should call this to poll the command parser. It 
  * blocks until a received command is completed.
  * Return: 0 on success

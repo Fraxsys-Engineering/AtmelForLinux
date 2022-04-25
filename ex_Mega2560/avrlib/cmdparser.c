@@ -37,7 +37,7 @@ static const char sErrUnknown[]   = "Error (unknown command)\r\n";
 static const char sErrCmdSyntax[] = "Error (command syntax)\r\n";
 static const char sErrInternal[]  = "Error (internal)\r\n";
 #ifdef P_OK_ON_SUCCESS
-static const char sSuccess[]  = "\r\nOK\r\n";
+static const char sSuccess[]  = "OK\r\n\r\n";
 #endif
 
 //                            CMD_FAIL  CMD_ERROR_UNKNOWN CMD_ERROR_SYNTAX CMD_POLL_FAIL
@@ -131,6 +131,10 @@ void pEcho(char * c, int len) {
             }
         }
     }
+}
+
+int preadInputStream(char * buf, int len, uint16_t tmout) {
+    return -1; // TODO
 }
 
 int pollParser(void) {

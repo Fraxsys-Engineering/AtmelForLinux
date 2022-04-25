@@ -46,11 +46,51 @@ static char * portname[3] = {
     "PORTA", "PORTB", ""
 };
 
+// does not test to see if the pin is actually an output - DO THIS YOURSELF!
+static void set_input( uint8_t port, uint8_t pinmask) {
+    printf("{set_input} port[%02x] pinmask[%02x]\n", port, pinmask);
+    if (port < TEST_PORT_COUNT) {
+        TEST_REGISTERS[(port*3)+2] |= pinmask; // PORT value 
+        TEST_REGISTERS[(port*3)+0] |= pinmask; // PIN  value (read uses PIN)
+        printf("{set_input} PIN[%02x] DDR[%02x] PORT[%02x]\n", 
+            TEST_REGISTERS[(port*3)+0], 
+            TEST_REGISTERS[(port*3)+1],
+            TEST_REGISTERS[(port*3)+2] );
+    }
+}
+
+// does not test to see if the pin is actually an output - DO THIS YOURSELF!
+static void clr_input( uint8_t port, uint8_t pinmask) {
+    if (port < TEST_PORT_COUNT) {
+        TEST_REGISTERS[(port*3)+2] &= (uint8_t)~pinmask; // PORT value 
+        TEST_REGISTERS[(port*3)+0] &= (uint8_t)~pinmask; // PIN  value (read uses PIN)
+    }
+}
+
+// fix the PIN readings (reflected outputs from the PORT) as PIN register is *SIMULATED*
+static void fix_pin(uint8_t port) {
+    // To emulate port feedback to PIN register, copy all PORT(OUTPUT) settings into the PIN register as well.
+    TEST_REGISTERS[(port*3)+0] = TEST_REGISTERS[(port*3)+1] & TEST_REGISTERS[(port*3)+2];
+}
+
+// transfer PIN set-bits to flip corresponding PORT outputs then clear PIN
+static void fix_port(uint8_t port) {
+    uint8_t pin = TEST_REGISTERS[(port*3)+0];
+    TEST_REGISTERS[(port*3)+0] = 0;
+    pin &= TEST_REGISTERS[(port*3)+1]; // mask out all inputs
+    TEST_REGISTERS[(port*3)+2] ^= pin;  // flip outputs
+}
+
 static void dump_port( uint8_t port ) {
     if (port < TEST_PORT_COUNT) {
+        
         printf("=== [DUMP] ---- %s -----------------------------------\n", portname[port]);
         
         printf("      [HH] (76543210)\n");
+
+        printf("  PIN [%02x] (", TEST_REGISTERS[(port*3)+0]);
+        print_bin_byte(TEST_REGISTERS[(port*3)+0]);
+        printf(")\n");
         
         printf("  DDR [%02x] (", TEST_REGISTERS[(port*3)+1]);
         print_bin_byte(TEST_REGISTERS[(port*3)+1]);
@@ -67,7 +107,7 @@ static void dump_port( uint8_t port ) {
 static int thndl = 1;
 
 void test_gpio_bits(void) {
-    int var;
+    //int var;
     int pa0 = pm_register_pin(PM_PORT_A, PM_PIN_0, PINMODE_INPUT_TRI);
     int pa1 = pm_register_pin(PM_PORT_A, PM_PIN_1, PINMODE_INPUT_PU);
     int pa4 = pm_register_pin(PM_PORT_A, PM_PIN_4, PINMODE_OUTPUT_LO);
@@ -77,6 +117,10 @@ void test_gpio_bits(void) {
     
     printf("\n");    
     printf("[test_gpio_bits] ----------------------------------------\n");
+    CU_ASSERT_FATAL ( pm_dir(pa0) == PINDIR_INPUT );
+    CU_ASSERT_FATAL ( pm_dir(pa1) == PINDIR_INPUT );
+    CU_ASSERT_FATAL ( pm_dir(pa4) == PINDIR_OUTPUT );
+    CU_ASSERT_FATAL ( pm_dir(pa6) == PINDIR_OUTPUT);
     CU_ASSERT_FATAL ( pa0 == thndl++ );
     CU_ASSERT_FATAL ( pa1 == thndl++ );
     CU_ASSERT_FATAL ( pa4 == thndl++ );
@@ -100,6 +144,7 @@ void test_gpio_bits(void) {
     
     printf("Add another GPIO pin - PA7 (out_lo)\n");
     pa7 = pm_register_pin(PM_PORT_A, PM_PIN_7, PINMODE_OUTPUT_LO);
+    CU_ASSERT_FATAL ( pm_dir(pa7) == PINDIR_OUTPUT );
     CU_ASSERT_FATAL ( pa7 == thndl++ );
     dump_port(PM_PORT_A);
     /* DDR: pins 4,6,7 are outputs '1' */
@@ -109,6 +154,7 @@ void test_gpio_bits(void) {
 
     printf("Set PA7 (out) to hi\n");
     CU_ASSERT_FATAL ( pm_out(pa7, 1) == PM_SUCCESS );
+    CU_ASSERT_FATAL ( pm_dir(pa7) == PINDIR_OUTPUT );
     dump_port(PM_PORT_A);
     /* DDR: pins 4,6,7 are outputs '1' */
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+1] == 0xd0 );
@@ -117,6 +163,7 @@ void test_gpio_bits(void) {
 
     printf("Set PA6 (out) to lo\n");
     CU_ASSERT_FATAL ( pm_out(pa6, 0) == PM_SUCCESS );
+    CU_ASSERT_FATAL ( pm_dir(pa6) == PINDIR_OUTPUT );
     dump_port(PM_PORT_A);
     /* DDR: pins 4,6,7 are outputs '1' */
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+1] == 0xd0 );
@@ -125,6 +172,7 @@ void test_gpio_bits(void) {
 
     printf("Set PA6 (out) to lo (duplicate, should not change)\n");
     CU_ASSERT_FATAL ( pm_out(pa6, 0) == PM_SUCCESS );
+    CU_ASSERT_FATAL ( pm_dir(pa6) == PINDIR_OUTPUT );
     dump_port(PM_PORT_A);
     /* DDR: pins 4,6,7 are outputs '1' */
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+1] == 0xd0 );
@@ -133,6 +181,7 @@ void test_gpio_bits(void) {
 
     printf("Switch PA7 to a Hi-Z input (no pullup)\n");
     CU_ASSERT_FATAL ( pm_chg_dir(pa7, PINMODE_INPUT_TRI) == PM_SUCCESS );
+    CU_ASSERT_FATAL ( pm_dir(pa7) == PINDIR_INPUT );
     dump_port(PM_PORT_A);
     /* DDR: pins 4,6 are outputs '1' */
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+1] == 0x50 );
@@ -141,6 +190,7 @@ void test_gpio_bits(void) {
 
     printf("Switch PA6 to a pullup input (needs '1' in port bit)\n");
     CU_ASSERT_FATAL ( pm_chg_dir(pa6, PINMODE_INPUT_PU) == PM_SUCCESS );
+    CU_ASSERT_FATAL ( pm_dir(pa6) == PINDIR_INPUT );
     dump_port(PM_PORT_A);
     /* DDR: pins 4,6 are outputs '1' */
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+1] == 0x10 );
@@ -153,8 +203,7 @@ void test_gpio_bits(void) {
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+1] == 0x10 );
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+2] == 0x42 );
 
-    var = TEST_REGISTERS[(PM_PORT_A*3)+2] | 1;
-    TEST_REGISTERS[(PM_PORT_A*3)+2] = var;
+    set_input(PM_PORT_A, 0x01);
     dump_port(PM_PORT_A);
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+1] == 0x10 );
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+2] == 0x43 );
@@ -166,9 +215,9 @@ void test_gpio_bits(void) {
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+2] == 0x43 );
 
     printf("Toggle bit 4 (simulated, check PINA4 for change)\n");
-    CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+0] == 0 );
+    CU_ASSERT_FATAL ( (TEST_REGISTERS[(PM_PORT_A*3)+0] & 0x10) == 0 );
     CU_ASSERT_FATAL ( pm_tog(pa4) == PM_SUCCESS );
-    CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_A*3)+0] == 0x10 );
+    CU_ASSERT_FATAL ( (TEST_REGISTERS[(PM_PORT_A*3)+0] & 0x10) == 0x10 );
     dump_port(PM_PORT_A);
     TEST_REGISTERS[(PM_PORT_A*3)+0] = 0;
     
@@ -183,6 +232,7 @@ void test_gpio_port(void) {
 
     printf("\n");
     printf("[test_gpio_port] PortB -----------------------------------\n");
+    CU_ASSERT_FATAL ( pm_dir(portb) == PINDIR_OUTPUT );
     CU_ASSERT_FATAL ( portb == thndl++ );
     dump_port(PM_PORT_B);
     /* port a should not have changed */
@@ -203,25 +253,32 @@ void test_gpio_port(void) {
     port_general = 0;
 
     printf("Read PortB \n");
+    fix_pin(PM_PORT_B);  // have to call this as PIN reg is simulated.
     var = pm_in(portb);
+    CU_ASSERT_FATAL ( pm_dir(portb) == PINDIR_OUTPUT );
     dump_port(PM_PORT_B);
     CU_ASSERT_FATAL ( var == 0xaa );
     
     printf("Write PortB \n");
     CU_ASSERT_FATAL ( pm_out(portb,0x15) == PM_SUCCESS );
+    fix_pin(PM_PORT_B); 
+    CU_ASSERT_FATAL ( pm_dir(portb) == PINDIR_OUTPUT );
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_B*3)+1] == 0xff );
     CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_B*3)+2] == 0x15 );
     dump_port(PM_PORT_B);
 
-    printf("Toggle PortB (simulated, check PINB for all 1's)\n");
-    CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_B*3)+0] == 0 );
+    printf("Toggle PortB (simulated, check PINB - all outputs will flip\n");
+    CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_B*3)+0] == 0x15 );
     CU_ASSERT_FATAL ( pm_tog(portb) == PM_SUCCESS );
-    CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_B*3)+0] == 0xff );
+    CU_ASSERT_FATAL ( pm_dir(portb) == PINDIR_OUTPUT );
+    CU_ASSERT_FATAL ( TEST_REGISTERS[(PM_PORT_B*3)+0] == 0xff ); // PINB
+    fix_port(PM_PORT_B); // use PINx to flip PORTx, zero PINx if outputs
     dump_port(PM_PORT_B);
     TEST_REGISTERS[(PM_PORT_B*3)+0] = 0;
     
     printf("Change PortB to all inputs\n");
     CU_ASSERT_FATAL ( pm_chg_dir(portb,PINMODE_INPUT_TRI) == PM_SUCCESS );
+    CU_ASSERT_FATAL ( pm_dir(portb) == PINDIR_INPUT );
     dump_port(PM_PORT_B);
 }
 

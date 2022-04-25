@@ -55,8 +55,16 @@
 #define PINMODE_INPUT_PU    2
 #define PINMODE_OUTPUT_LO   3
 #define PINMODE_OUTPUT_HI   4
-
 #define PINMODE_TOTALMODES  5
+
+/* QUERY Direction - Input or Output pin ----------------------------*/
+typedef enum pm_dir_type {
+    PINDIR_INPUT =  0,
+    PINDIR_OUTPUT = 1,
+    PINDIR_ERROR,
+    /* ... */
+    PINDIR_COUNT
+} pm_dir_t;
 
 /* GPIO - REGISTER A PIN OR A COMPLETE PORT (8 bits) ----------------*/
 #define PM_REG_PIN          0
@@ -159,6 +167,13 @@ int pm_register_prt(uint8_t port, uint8_t byt, uint8_t mode);
  * Returns:     PM_SUCCESS, PM_ERROR
  * ------------------------------------------------------------------*/
 int pm_chg_dir(int hndl, uint8_t mode);
+
+/* Query pin,port direction -----------------------------------------
+ * -
+ * Return the direction of the port or pin.
+ * invalid handles will return PINDIR_ERROR
+ * ------------------------------------------------------------------*/
+pm_dir_t pm_dir(int hndl);
 
 /* Change Pin, Port State -------------------------------------------
  * -

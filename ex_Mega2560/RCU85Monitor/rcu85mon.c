@@ -27,80 +27,11 @@
 #include <avrlib/cmdparser.h>
 #include <avrlib/libtime.h>
 #include "kybd_led_io.h"
+#include "rcu85cmds.h"
+#include "rcu85mem.h"
 
-const char * sHelp  = "\
-System help menu ----------------------------------------------------\r\n\
-  help      (h)                      display command help (this menu)\r\n\
-  read      (r)  [addr len]          read memory. addr, len are hex. \r\n\
-  write     (w)  [addr d0 [d1 .. d7]] write 1 - 8 bytes, addr, data are hex.\r\n\
-";
-
-#define RX_STRN_MAX 128
-
-const char * starts = "RCU85 Monitor - Ver 1.0\r\n";
-
-// Print out one line of 8 bytes, and a starting address. All in hex.
-// Less than 8 bytes to print will place blanks '--' for remainder.
-static void prline8( uint16_t addr, const uint8_t * bytes, int len ) {
-    pSendString("[");
-    pSendHexShort(addr);
-    pSendString("]  ");
-    int i = 0;
-    while (len) {
-        pSendHexByte(bytes[i]);
-        pSendString(" ");
-        i++;
-        len --;
-    }
-    while (i < 8) {
-        pSendString("-- ");
-        i ++;
-    }
-    pSendString("\r\n");
-}
-
-// Print out memory in a series of 8 octet lines.
-// TODO - UPDATE to reflect reading of RCU85 memory.
-static void prmem( uint16_t addr, int len ) {
-    uint8_t bytbyt[8];
-    while (len) {
-        int cplen = (len < 8) ? len : 8;
-        sutil_memcpy((void *)bytbyt, (void *)addr, cplen);
-        prline8(addr, bytbyt, cplen);
-        len -= cplen;
-        addr += cplen;
-    }
-}
-
-// [[COMMAND]] 'help' | 'h' - nargs: 0
-// Display help screen
-static int cmd_help(int vc, const char * verbs[]) {
-    pSendString(sHelp);
-	return CMD_SUCCESS;
-}
-
-static int cmd_read(int vc, const char * verbs[]) {
-#ifdef TDD_PRINTF    
-	printf("(cmd_read) vc:%d\n", vc);
-#endif
-    pSendString("cmd_read\r\n");
-	return CMD_SUCCESS;
-}
-
-static int cmd_write(int vc, const char * verbs[]) {
-#ifdef TDD_PRINTF    
-	printf("(cmd_write) vc:%d\n", vc);
-#endif
-    pSendString("cmd_write\r\n");
-	return CMD_SUCCESS;
-}
-
-cmdobj pCommandList[4] = {
-	{ "help", "h", 0, 0, cmd_help},
-	{ "read", "r", 2, 2, cmd_read},
-    { "write","w", 2, 9, cmd_write},
-	{ NULL, NULL,  0, 0, NULL}
-};
+// (TODO) will need to be externally accessed...
+kybd_t mon_info; // data from the serial monitor
 
 #if 0
 static uint8_t tcount[3] = {0,0,0};
@@ -123,7 +54,7 @@ static void test_display(kybd_t * kbd_info) {
 #endif
 
 int main (void) {
-    kybd_t kbd_info;
+    kybd_t kbd_info; // data from the keyboard
 	int  fhnd;
     int rc;
 	
@@ -139,16 +70,29 @@ int main (void) {
             blink_error(5); /* LED Display - init */
         }
     }
+    // Setup CPU Bus interface
+    rc = rcmem_init();
+    if (rc != RCM_SUCCESS) {
+        blink_error(6);
+    }
+    
+    // Pre-load monitor data
+    {
+        mon_info.ds.dat.data = 0;
+        mon_info.ds.dat.addr_hi = 0;
+        mon_info.ds.dat.addr_lo = 0;
+        mon_info.ds.dat._unused = 0;
+    }
     
     // Open Command Perser's interface
-    fhnd = startParser("/dev/uart/1,9600,8,N,1", 0);
+    fhnd = startParser("/dev/uart/1,19200,8,N,1", 0);
 	if (fhnd != 0)
 		blink_error(2);
 
 	tm_delay_ms(10);
 
 	/* Monitor Title message --> serial terminal (if attached) */
-    pSendString(starts);
+    rcmd_sendWelcome();
 
 #if 0
     if (disp_isInitializaed())
@@ -164,17 +108,18 @@ int main (void) {
         if ( pollParser() != 0 ) {
             blink_error(3);
         }
-#if 1        
+
         if ((rc = kybd_scan(&kbd_info)) != KD_SUCCESS)
             blink_error(5); /* Keyboard - Scan error */
-        if ((rc = disp_update(&kbd_info)) != KD_SUCCESS)
-            blink_error(6); /* LED Display - update error */
-#endif
-#if 0
-        test_display(&kbd_info);
-#endif
-    }
 
+        if ( rcmd_readMonitorState() == MSTATE_KYBD) {
+            if ((rc = disp_update(&kbd_info)) != KD_SUCCESS)
+                blink_error(7); /* LED Display - update error */
+        } else {
+            if ((rc = disp_update(&mon_info)) != KD_SUCCESS)
+                blink_error(7); /* LED Display - update error */
+        }
+    }
     return(0);
 }
 

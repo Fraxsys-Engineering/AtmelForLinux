@@ -428,6 +428,17 @@ int pm_chg_dir(int hndl, uint8_t mode) {
     return rc;
 }
 
+pm_dir_t pm_dir(int hndl) {
+    pm_dir_t dir = PINDIR_ERROR;
+    s_handle * rlst = s_findhndl(hndl);
+    if (rlst) {
+        s_portstatus * port = rlst->p_port;
+        uint8_t pinidx = (rlst->pinidx == PINIDX_PORT) ? 0 : rlst->pinidx;
+        dir = (*(port->rddr) & (1<<pinidx)) ? PINDIR_OUTPUT : PINDIR_INPUT;
+    }
+    return dir;
+}
+
 int pm_out(int hndl, uint8_t value) {
     int rc = PM_ERROR;
     s_handle * rlst = s_findhndl(hndl);

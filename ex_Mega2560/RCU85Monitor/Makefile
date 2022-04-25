@@ -10,7 +10,9 @@ LIB_SRC := stringutils.c \
            cmdparser.c \
            dblink.c \
            gpio_api.c \
-           kybd_led_io.c
+           kybd_led_io.c \
+           rcu85cmds.c \
+           rcu85mem.c
            
 LIB_HDR := stringutils.h \
            driver.h \
@@ -21,6 +23,8 @@ LIB_HDR := stringutils.h \
            dblink.h \
            gpio_api.h \
            kybd_led_io.h \
+           rcu85cmds.h \
+           rcu85mem.h \
            libtime.h
 
 ## Sourcefiles, manually entered

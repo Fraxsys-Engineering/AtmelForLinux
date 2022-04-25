@@ -79,6 +79,11 @@ typedef struct keybd_type {
     } ds;
 } kybd_t;
 
+/* Externally defined memory for holding monitor settings - to be 
+ * updated in the LED display 
+ */
+extern kybd_t mon_info;
+
 /* Initialize operations for Keyboard scanning and LED refreshing ----
  * RETURNS: 
  *      KD_SUCCESS | 
