@@ -31,8 +31,8 @@ USAGE: {iom | im} [io | mem] (enter)
 
 Set or read the current access mode.
 
-  io  - Set the access mode to read and write the I/O space (0x00 .. 0xff)
-  mem - Set the access mode to rad and write program and data memory
+ - io  : Set the access mode to read and write the I/O space (0x00 .. 0xff)
+ - mem : Set the access mode to rad and write program and data memory
   
 By default the mode is set to 'mem'. The mode must be changed prior to 
 writing data or reading data in the monitor.
@@ -42,16 +42,16 @@ USAGE: {read | r} addr len (enter)
 
 Read from I/O or program/data memory. starting address and length are manditory parameters.
 
-  addr - start address for the read, in hexadecimal.
-  len  - # bytes to read. max. is 64 in one command.
+ - addr : start address for the read, in hexadecimal.
+ - len  : # bytes to read. max. is 64 in one command.
 
 ## write (w)
 USAGE: {write | w} addr d0 [d1 [d2 ...]] (enter)
 
 Write one or more bytes to I/O or program/data memory. An address and at least one write-byte is required. 
 
-  addr      - start address for the write, in hexadecimal.
-  d0,d1..d7 - write byte(s) in hexadecimal MAX: 8 bytes in one command.
+ - addr      : start address for the write, in hexadecimal.
+ - d0,d1..d7 : write byte(s) in hexadecimal MAX: 8 bytes in one command.
 
 Note: This operation is considered atomic, so a halt is not required for this command. If the CPU is not already on hold then it will be halted while memory is being written and then released again without a reset.
 
@@ -60,7 +60,7 @@ USAGE: {addr | a} [addr] (enter)
 
 Set the starting address for a write. This command supports 'bwrt' (bulk-write) and may be removed in future as Intel hex write support does not require a pre-set address.
 
-  addr - start address for the write, in hexadecimal.
+ - addr : start address for the write, in hexadecimal.
 
 ## bwrt (b)
 USAGE: {bwrt | b} data.. EOF (enter)
@@ -69,7 +69,7 @@ USAGE: {bwrt | b} data.. EOF (enter)
 
 (!) This command requires the starting address and access mode to be set prior to usage.
 
-  data - data is 2 characters per byte (ASCII-HEX) with no leading or trailing additional characters, eg. "0x". No spaces are required between bytes. The last byte must be by byte value 03 (ETX).
+ - data : data is 2 characters per byte (ASCII-HEX) with no leading or trailing additional characters, eg. "0x". No spaces are required between bytes. The last byte must be by byte value 03 (ETX).
   
 DEPRECATED - This raw write command is not recommended for writing bulk data into I/O or program/data memory. Use the Intel hex write command 'hwrt' instead.
 
