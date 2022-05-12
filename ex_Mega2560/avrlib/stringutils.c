@@ -151,9 +151,8 @@ uint8_t sutil_chartohex(const char c) {
     return (i >=0) ? all_hex_value[i] : (uint8_t)i;
 }
 
-uint16_t sutil_strtohex(const char * hexstring) {
+uint16_t sutil_strntohex(const char * hexstring, uint16_t len) {
     uint16_t  val = 0;
-    uint16_t  len = sutil_strlen(hexstring);
     uint16_t  pow = 0;
     char      c;
     uint16_t  i;
@@ -179,6 +178,10 @@ uint16_t sutil_strtohex(const char * hexstring) {
         }
     }
     return val;
+}
+
+uint16_t sutil_strtohex(const char * hexstring) {
+    return sutil_strntohex(hexstring, sutil_strlen(hexstring));
 }
 
 char sutil_nibble(uint8_t n, uint8_t isHiNibble, uint8_t uc) {

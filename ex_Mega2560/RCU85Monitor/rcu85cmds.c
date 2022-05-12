@@ -42,6 +42,10 @@ System help menu ----------------------------------------------------\r\n\
   addr      (a) [addr]         set address pointer (for bulk writes)\r\n\
   bwrt      (b) [data...] EOF  Send bulk data, starting from set addr.\r\n\
                                finish the transfer by sending ETX (0x03)\r\n\
+  hwrt      [intel hex-data]   Send data in an Intel hex record format. \r\n\
+                               No initial address setup is needed but \r\n\
+                               memory or I/O space must be set. Mode ends \r\n\
+                               when the EOF hex line :00000001FF is sent. \r\n\
   halt      (hold)             Hold the RCU85 in a Halted state until \r\n\
                                released using run (go)\r\n\
   run       (go) [reset]       Release the RCU85, when being manually held.\r\n\
@@ -338,6 +342,186 @@ static int cmd_bwrt(int vc, const char * verbs[]) {
     return rc;
 }
 
+typedef enum hwrt_state_type {
+    HS_WAIT_COLON = 0,      /* wait for start of line (colon :)     */
+    HS_WAIT_RECLEN,         /* wait for record len, 1 octet         */
+    HS_WAIT_ADDR,           /* wait for address, 4 octets           */
+    HS_WAIT_RECTYPE,        /* wait for record type, 1 octet        */
+    HS_WAIT_DATA,           /* wait for all data [reclen]           */
+    HS_WAIT_CHKSUM,         /* wait for checksum, 1 octet           */
+    HS_REC_END,             /* recvd record end                     */
+    HS_REC_ABORT            /* error occured, abort parsing and ret */
+} hwrt_state_t;
+
+#define RECTYPE_DATA    0x00
+#define RECTYPE_EOF     0x01
+#define RECTYPE_XSEGADR 0x02
+#define RECTYPE_XLINADR 0x04
+#define RECTYPE_SLAREC  0x05
+#define READ_TMOUT      100
+
+static int cmd_hwrt(int vc, const char * verbs[]) {
+    const char valid_chars[] = ":0123456789abcdefABCDEF\r\n";
+    char     linebuffer[82];    /* formatted ASCII line */
+    uint8_t  databuffer[32];    /* decoded data         */
+    int      rc = CMD_SUCCESS;
+    int      i,cnt;
+    uint8_t  brk = 0;       /* set 'brk' (break) to halt parsing    */
+    uint8_t  idx = 0;
+    uint8_t  linend  = 0;   /* support partial buffer fills         */
+    uint8_t  bufend  = 0;   /* total used buffer length w/ prior frag*/
+    uint8_t  reclen  = 0;   /* record length                        */
+    uint8_t  rectype = 0;   /* record type                          */
+    uint8_t  reccrc  = 0;   /* record crc (decoded from line)       */
+    uint8_t  crc     = 0;   /* data crc (calculated)                */
+    uint16_t addr    = 0;   /* starting address for 'databuffer'    */
+    hwrt_state_t hstate = HS_WAIT_COLON;
+
+    /* Main loop - once entered, keep pulling data from stdin ------*/
+    while (hstate < HS_REC_END) {
+        cnt = preadInputStream(linebuffer+linend, 80-linend, READ_TMOUT);
+        if (cnt > 0) {
+            bufend = linend + cnt;
+            linebuffer[bufend] = '\0';
+            /* check all chars to see that they are valid */
+            for ( i = 0 ; i < bufend ; ++i )
+                if (sutil_strchar(valid_chars,linebuffer[i]) < 0) {
+                    rc = CMD_ERROR_SYNTAX;
+                    hstate = HS_REC_ABORT;
+                    break;
+                }
+            if (hstate == HS_REC_ABORT)
+                break;
+            /* start/resume state machine parsing */
+            idx = 0; brk = 0;
+            while ( idx < bufend ) {
+                switch (hstate) {
+                case HS_WAIT_COLON:
+                    if (linebuffer[idx] == ':') {
+                        hstate = HS_WAIT_RECLEN;
+                        pSendString("\r\n:");
+                    }
+                    idx ++;
+                    break;
+                case HS_WAIT_RECLEN:
+                    /* looking for 2-characters / one octet */
+                    if (idx+2 >= bufend || idx+2 >= 80) {
+                        // TODO pause parsing, rotate linebuffer and get more data
+                        brk = 1;
+                        break;
+                    }
+                    reclen = (uint8_t)sutil_strntohex(linebuffer+idx,2);
+                    pSendChars(linebuffer+idx,2);
+                    idx += 2;
+                    hstate = HS_WAIT_ADDR;
+                    break;
+                case HS_WAIT_ADDR:
+                    /* looking for 4-characters / two octets */
+                    if (idx+4 >= bufend || idx+4 >= 80) {
+                        // TODO pause parsing, rotate linebuffer and get more data
+                        brk = 1;
+                        break;
+                    }
+                    addr = sutil_strntohex(linebuffer+idx,4);
+                    pSendChars(linebuffer+idx,4);
+                    idx += 4;
+                    hstate = HS_WAIT_RECTYPE;
+                    break;
+                case HS_WAIT_RECTYPE:
+                    /* looking for 2-characters / one octet */
+                    if (idx+2 >= bufend || idx+2 >= 80) {
+                        // TODO pause parsing, rotate linebuffer and get more data
+                        brk = 1;
+                        break;
+                    }
+                    rectype = (uint8_t)sutil_strntohex(linebuffer+idx,2);
+                    pSendChars(linebuffer+idx,2);
+                    idx += 2;
+                    hstate = HS_WAIT_DATA;
+                    break;
+                case HS_WAIT_DATA:
+                    /* looking for (reclen * 2) characters / reclen octets */
+                    if ((reclen*2)+idx >= bufend || (reclen*2)+idx >= 80) {
+                        // TODO pause parsing, rotate linebuffer and get more data
+                        brk = 1;
+                        break;
+                    }
+                    pSendChars(linebuffer+idx,(reclen*2));
+                    /* ready for CRC calculation */
+                    crc = reclen + ((uint8_t)(addr >> 8)) + ((uint8_t)(addr&0xff)) + rectype;
+                    for ( i = 0 ; i < reclen ; ++i ) {
+                        databuffer[i] = (uint8_t)sutil_strntohex(linebuffer+idx+(i*2),2);
+                        crc += databuffer[i];
+                    }
+                    /* add 1 and invert for "2's compliment" */
+                    crc = (uint8_t)~crc;
+                    crc += 1;
+                    idx += (reclen*2);
+                    hstate = HS_WAIT_CHKSUM;
+                    break;
+                case HS_WAIT_CHKSUM:
+                    /* looking for 2-characters / one octet */
+                    if (idx+2 >= bufend || idx+2 >= 80) {
+                        // TODO pause parsing, rotate linebuffer and get more data
+                        brk = 1;
+                        break;
+                    }
+                    reccrc = (uint8_t)sutil_strntohex(linebuffer+idx,2);
+                    pSendChars(linebuffer+idx,2);
+                    idx += 2;
+                    hstate = (crc == reccrc) ? HS_WAIT_COLON : HS_REC_ABORT;
+                    /* Write the data if all is good */
+                    if ( hstate == HS_WAIT_COLON ) {
+                        if (rectype == RECTYPE_DATA) {
+                            rc = rcmem_write(addr, databuffer, reclen, (uint8_t)memtype);
+                            if (rc != (int)reclen) {
+                                hstate = HS_REC_ABORT;
+                            } else {
+                                pSendString(" OK\r\n");
+                            }
+                        } else if (rectype == RECTYPE_EOF) {
+                            hstate = HS_REC_END;
+                            pSendString(" END\r\n");
+                        }
+                        brk = 1; // do a buffer shift at this point...
+                    } else {
+                        pSendString(" CRC-ERR\r\n");
+                    }
+                    break;
+                case HS_REC_END:
+                case HS_REC_ABORT:
+                default:
+                    break;
+                } /* switch */
+                if (brk) {
+                    if (hstate == HS_WAIT_COLON) {
+                        /* find the next colon, if any */
+                        do {
+                            if (linebuffer[idx] == ':') {
+                                break;
+                            }
+                            idx ++;
+                        } while (idx < bufend);
+                    }
+                    /* move remaining line to the front */
+                    linend = sutil_memcpy(linebuffer, linebuffer+idx, bufend-idx);
+                    /* break out to the outer loop, to read stdin */
+                    break;
+                }
+            } /* while (parsing line buffer) */
+        } else if (cnt < 0) {
+            rc = CMD_ERROR_SYNTAX;
+            hstate = HS_REC_ABORT;
+        }
+        /* a return count of zero is not an error... waiting for human 
+         * to copy-paste another hex-rec line into the console... 
+         * just keep spinning.
+         */
+    } /* while (traversing states && reading stdin */
+    
+    return rc;
+}
+
 static int cmd_halt(int vc, const char * verbs[]) {
     if ( rcmem_hold() == RCM_SUCCESS ) {
         pSendString("RCU85: HOLD ON\r\n");
@@ -368,7 +552,7 @@ static int cmd_run(int vc, const char * verbs[]) {
 }
     
 /* Register all commands */
-cmdobj pCommandList[10] = {
+cmdobj pCommandList[11] = {
 	{ "help", "h", 0, 0, cmd_help },
     { "mode", "m", 0, 1, cmd_mode },
     { "iom",  "im",0, 1, cmd_iom  },
@@ -376,6 +560,7 @@ cmdobj pCommandList[10] = {
     { "write","w", 2, 9, cmd_write},
     { "addr", "a", 0, 1, cmd_addr },
     { "bwrt", "b", 0, 0, cmd_bwrt },
+    { "hwrt", NULL,0, 0, cmd_hwrt },
     { "halt","hold",0, 0, cmd_halt },
     { "run", "go", 0, 1, cmd_run  },
 	{ NULL, NULL,  0, 0, NULL     }

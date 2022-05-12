@@ -54,13 +54,9 @@ int    serdesc = DEV_FAIL;
 char   tempbuf[TEMP_BUF_LEN];
 
 // busy loop-spin until all characters pushed into the transmit buffer.
-int pSendString(const char * text) {
+int pSendChars(const char * text, int len) {
     int rc = CMD_FAIL;
-    if (serdesc > 0) {
-        int len = sutil_strlen(text);
-#ifdef TDD_PRINTF
-        printf("{pSendString} text[%s] len[%d]\n", (text)?text:"<NULL>", len);
-#endif    
+    if (text && len && serdesc > 0) {
         int remlen = len;
         int sp = 0;
         int sent = cd_write(serdesc, text+sp, remlen);
@@ -75,6 +71,13 @@ int pSendString(const char * text) {
         rc = (sent >=0) ? DEV_SUCCESS : DEV_FAIL;
     }
     return rc;
+}
+
+int pSendString(const char * text) {
+#ifdef TDD_PRINTF
+    printf("{pSendChars} text[%s] len[%d]\n", (text)?text:"<NULL>", sutil_strlen(text));
+#endif    
+    return pSendChars(text, sutil_strlen(text));
 }
 
 int pSendHexByte(const uint8_t val) {
@@ -133,8 +136,37 @@ void pEcho(char * c, int len) {
     }
 }
 
+#define PRIS_TM_INCR  10    /* sleep in 10 ms increments */
 int preadInputStream(char * buf, int len, uint16_t tmout) {
-    return -1; // TODO
+    int rc = CMD_FAIL;
+    int rptr = 0;
+    uint16_t loop_time = 0;
+#ifdef TDD_PRINTF
+    printf("{preadInputStream} maxlen[%d] maxwait[%u]\n", len, tmout);
+#endif    
+    if (serdesc > 0 && buf && len > 0) {
+        do {
+            rc = cd_read(serdesc, buf+rptr, len-rptr);
+            if (rc > 0) {
+                rptr += rc;
+                loop_time = 0; /* read something, reset timeout timer */
+#ifdef TDD_PRINTF
+                printf("    read chunk [%d], accumulated[%d], tmr reset\n", rc, rptr);
+#endif    
+            } else if (rc == 0) {
+                tm_delay_ms(PRIS_TM_INCR);
+                loop_time += PRIS_TM_INCR;
+            } else {
+#ifdef TDD_PRINTF
+                printf("    read error[%d]\n", rc);
+#endif    
+                break; /* some error */
+            }
+        } while ((loop_time < tmout) && (rptr < len));
+        if (rc >= 0)
+            rc = rptr; /* if all ok, return the actual read count */
+    }
+    return rc;
 }
 
 int pollParser(void) {

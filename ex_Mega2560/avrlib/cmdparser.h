@@ -103,6 +103,7 @@ extern cmdobj pCommandList[];
  *     data has been transferred to the buffer.
  */
 int pSendString(const char * text);
+int pSendChars(const char * chars, int count);
 int pSendHexByte(const uint8_t val);
 int pSendHexShort(const uint16_t val);
 int pSendHexLong(const uint32_t val);

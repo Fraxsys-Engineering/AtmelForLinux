@@ -55,11 +55,12 @@ uint8_t sutil_ishexstring(const char * hexstring);
 // return hex value of char 'c' or (-1) if invalid
 uint8_t sutil_chartohex(const char c);
 
-// sutil_strtohex
+// sutil_strntohex, sutil_strtohex
 // Convert a hexadecimal string value ([0x],[0X]abcd) to an unsigned
 // integer. Supports 8-bit and 16-bit values only at this time.
 // return the unsigned value in a uint16_t.
-uint16_t sutil_strtohex(const char * hexstring);
+uint16_t sutil_strntohex(const char * hexstring, uint16_t len);
+uint16_t sutil_strtohex(const char * hexstring); /* if string is terminated */
 
 // sutil_nibble()
 // convert the high or low nibble of a byte value in 'n' into its 
