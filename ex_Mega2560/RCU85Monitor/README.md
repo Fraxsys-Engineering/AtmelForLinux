@@ -20,9 +20,9 @@ USAGE: {mode | m} [{term | kybd}] (enter)
 If no arguments given then the command returns the current mode setting. 
 On power/reset the mode is [term]inal.
 
-  term - terminal mode. LED display controlled by serial terminal data.
-  kybd - keyboard/LED mode. LED display show the key-switch panel (keyboard) settings.
-         (key-switch mode is not yet fully supported)
+ - term : terminal mode. LED display controlled by serial terminal data.
+ - kybd : keyboard/LED mode. LED display show the key-switch panel (keyboard) settings.
+          (key-switch mode is not yet fully supported)
 
 Future (kybd): This mode is intended to support the Atmega2650 as a key-switch & LED controller for a way to monitor the RCU85 directly from the robot's key-switch panel.
 
